@@ -1,0 +1,12 @@
+name: nlp_project
+dependencies:
+  - python==3.6.5
+  - numpy
+  - pandas
+  - matplotlib
+  - nb_conda
+  - pip:
+    - scipy
+    - scikit-learn
+    - torch==0.4.1
+    - torchvision
