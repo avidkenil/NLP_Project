@@ -3,7 +3,7 @@ Machine translation project for the DS:GA-1011 NLP class.
 
 
 ## Requirements
-For ease of setup, we have created a [requirements.yaml](https://github.com/NYU-CDS-Capstone-Project/learning_visual_embeddings/blob/master/requirements.yaml) file which will create a conda environment with the name `nlp_project` and install all dependencies and requirements into that environment. To do this:
+For ease of setup, we have created a [requirements.yaml](https://github.com/avidkenil/NLP_Project/blob/master/requirements.yaml) file which will create a conda environment with the name `nlp_project` and install all dependencies and requirements into that environment. To do this:
   - Install Anaconda and run:
 ```
 conda env create -f requirements.yaml

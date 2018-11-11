@@ -1,10 +1,19 @@
+data/
+pickle_objects/
+logs/
+plots/
+checkpoints/
+
+sftp-config.json
+sftp-config-alt.json
+
+# MAC OS stuff
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
-#Custom ignores
-data/
 
 # C extensions
 *.so
@@ -48,7 +57,6 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
-.pytest_cache/
 
 # Translations
 *.mo
@@ -56,8 +64,9 @@ coverage.xml
 
 # Django stuff:
 *.log
+.static_storage/
+.media/
 local_settings.py
-db.sqlite3
 
 # Flask stuff:
 instance/
