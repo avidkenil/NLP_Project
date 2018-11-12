@@ -1,6 +1,6 @@
-# DS-GA 1011 Natural Language Processing with Representation Learning
+# Natural Language Processing with Representation Learning
 
-# Neural Machine Translation for Vietnamese (Vi) → English (En) and Chinese (Zh) → En
+## Machine Translation for Vietnamese → English and Chinese → English
 
 Members:
   - Mihir Rana
@@ -35,8 +35,8 @@ usage: main.py [-h] [--project-dir PROJECT_DIR]
 optional arguments:
   -h, --help            				show this help message and exit
   --project-dir PROJECT_DIR				path to project directory
-  --source-dataset SOURCE_DATASET			name of source dataset file in data directory
-  --target-dataset TARGET_DATASET			name of target dataset file in data directory
+  --source-dataset SOURCE_DATASET			name of source dataset file in data directory, default='vi'
+  --target-dataset TARGET_DATASET			name of target dataset file in data directory, default='en'
   --data-dir DATA_DIR   				path to data directory (used if different from "data")
   --checkpoints-dir CHECKPOINTS_DIR			path to checkpoints directory
   --load-ckpt LOAD_CHECKPOINT				name of checkpoint file to load
