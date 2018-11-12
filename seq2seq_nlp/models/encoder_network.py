@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class RNN(nn.Module):
+class RNNEncoder(nn.Module):
     def __init__(self, kind, hidden_size, num_layers, bidirectional):
         '''
         kind (str): one of: 'rnn', 'gru', 'lstm'
