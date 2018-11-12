@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 # from seq2seq_nlp.models.encoder_network import RNNEncoder
 # from seq2seq_nlp.models.decoder_network import RNNDecoder
 # from seq2seq_nlp.models.attention import VanillaAttention
-import seq2seq_nlp.utils
+from seq2seq_nlp.utils import *
 
 
 parser = argparse.ArgumentParser()
