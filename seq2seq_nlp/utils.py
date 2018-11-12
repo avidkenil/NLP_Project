@@ -137,8 +137,8 @@ def dump_ind_data(obj, path):
             fout.write(s)
 
 def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                    train_accuracy_history, val_accuracy_history, epoch, dataset, \
-                    project_dir, checkpoints_dir, is_parallel=False):
+                    train_accuracy_history, val_accuracy_history, epoch, source_dataset, \
+                    target_dataset, project_dir, checkpoints_dir, is_parallel=False):
 
     state_dict = {
         'encoder_state_dict': encoder.module.state_dict() if is_parallel else encoder.state_dict(),
@@ -151,14 +151,19 @@ def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_hi
         'val_accuracy_history': val_accuracy_history
     }
 
-    state_dict_name = 'state_dict_{}_epoch{}.pkl'.format(os.path.splitext(dataset)[0], epoch)
+    source_dataset = os.path.splitext(source_dataset)[0]
+    target_dataset = os.path.splitext(target_dataset)[0]
+
+    state_dict_name = 'state_dict_{}_{}_epoch{}.pkl'.format(source_dataset, target_dataset, epoch)
     state_dict_path = os.path.join(project_dir, checkpoints_dir, state_dict_name)
     logging.info('Saving checkpoint "{}"...'.format(state_dict_path))
     torch.save(state_dict, state_dict_path)
     logging.info('Done.')
 
 def remove_checkpoint(dataset, project_dir, checkpoints_dir, epoch):
-    state_dict_name = 'state_dict_{}_epoch{}.pkl'.format(os.path.splitext(dataset)[0], epoch)
+    source_dataset = os.path.splitext(source_dataset)[0]
+    target_dataset = os.path.splitext(target_dataset)[0]
+    state_dict_name = 'state_dict_{}_{}_epoch{}.pkl'.format(source_dataset, target_dataset, epoch)
     state_dict_path = os.path.join(project_dir, checkpoints_dir, state_dict_name)
     logging.info('Removing checkpoint "{}"...'.format(state_dict_path))
     if os.path.exists(state_dict_path):
