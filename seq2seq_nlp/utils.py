@@ -184,7 +184,7 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
         state_dict = torch.load(state_dict_path)
 
         # Extract last trained epoch from checkpoint file
-        epoch_trained = int(os.path.splitext(checkpoint_file)[0].split('_')[-1])
+        epoch_trained = int(os.path.splitext(checkpoint_file)[0].split('_epoch')[-1])
         assert epoch_trained == state_dict['epoch']
 
         encoder.load_state_dict(state_dict['encoder_state_dict'])
