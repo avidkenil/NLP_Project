@@ -107,7 +107,8 @@ def load_object(filepath):
             for _ in range(0, input_size, max_bytes):
                 bytes_in += f.read(max_bytes)
         object = pickle.loads(bytes_in)
-    except:
+    except Exception as error:
+        print(error)
         return None
     return object
 
