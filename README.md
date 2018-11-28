@@ -24,29 +24,34 @@ pip install -e .
 
 ## Usage
 ```
-usage: main.py [-h] [--project-dir PROJECT_DIR]
+usage: main.py [-h] [--project-dir PROJECT_DIR] [--data-dir DATA_DIR]
                [--source-dataset SOURCE_DATASET]
-               [--target-dataset TARGET_DATASET] [--data-dir DATA_DIR]
+               [--target-dataset TARGET_DATASET]
                [--checkpoints-dir CHECKPOINTS_DIR]
-               [--load-ckpt LOAD_CHECKPOINT] [--batch-size BATCH_SIZE]
-               [--epochs EPOCHS] [--device DEVICE] [--device-id DEVICE_ID]
-               [--ngpu NGPU] [--parallel] [--lr LR] [--force]
+               [--source-vocab SOURCE_VOCAB] [--target-vocab TARGET_VOCAB]
+               [--load-ckpt LOAD_CHECKPOINT] [--max-len MAX_LEN]
+               [--batch-size BATCH_SIZE] [--epochs EPOCHS] [--device DEVICE]
+               [--device-id DEVICE_ID] [--ngpu NGPU] [--parallel] [--lr LR]
+               [--force]
 
 optional arguments:
-  -h, --help            				show this help message and exit
-  --project-dir PROJECT_DIR				path to project directory
-  --source-dataset SOURCE_DATASET			name of source dataset file in data directory, default='vi'
-  --target-dataset TARGET_DATASET			name of target dataset file in data directory, default='en'
-  --data-dir DATA_DIR   				path to data directory (used if different from "data")
-  --checkpoints-dir CHECKPOINTS_DIR			path to checkpoints directory
-  --load-ckpt LOAD_CHECKPOINT				name of checkpoint file to load
-  --batch-size BATCH_SIZE				batch size, default=64
-  --epochs EPOCHS       				number of epochs, default=10
-  --device DEVICE       				cuda | cpu, default=cuda
-							device to train on
-  --device-id DEVICE_ID					device id of gpu, default=0
-  --ngpu NGPU           				number of GPUs to use (0,1,...,ngpu-1)
-  --parallel            				use all GPUs available
-  --lr LR               				learning rate
-  --force               				overwrites all existing dumped data sets
+  -h, --help                          show this help message and exit
+  --project-dir PROJECT_DIR           path to project directory
+  --source-dataset SOURCE_DATASET     name of source dataset file in data directory, default='vi'
+  --target-dataset TARGET_DATASET     name of target dataset file in data directory, default='en'
+  --data-dir DATA_DIR                 path to data directory, default="data/vi-en"
+  --checkpoints-dir CHECKPOINTS_DIR   path to checkpoints directory
+  --load-ckpt LOAD_CHECKPOINT         name of checkpoint file to load
+  --source-vocab SOURCE_VOCAB         source dataset vocabulary size, default=50000
+  --target-vocab TARGET_VOCAB         target dataset vocabulary size, default=50000
+  --max-len MAX_LEN                   max sentence length, default=300
+  --batch-size BATCH_SIZE             batch size, default=64
+  --epochs EPOCHS                     number of epochs, default=10
+  --device DEVICE                     cuda | cpu, default=cuda
+                                      device to train on
+  --device-id DEVICE_ID               device id of gpu, default=0
+  --ngpu NGPU                         number of GPUs to use (0,1,...,ngpu-1)
+  --parallel                          use all GPUs available
+  --lr LR                             learning rate, default=1e-4
+  --force                             overwrites all existing dumped data sets
 ```
