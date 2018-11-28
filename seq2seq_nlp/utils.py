@@ -8,15 +8,68 @@ import pickle
 from pprint import pformat
 
 import torch
+from torch.nn import functional
+from torch.autograd import Variable
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+#custom loss function with masked outputs till the sequence length
+# taken from https://github.com/spro/practical-pytorch/tree/master/seq2seq-translation
+# make changes accordingly for pytorch 0.4 and integrating to our code.
+def sequence_mask(sequence_length, max_len=None):
+    if max_len is None:
+        max_len = sequence_length.data.max()
+    batch_size = sequence_length.size(0)
+    seq_range = torch.range(0, max_len - 1).long()
+    seq_range_expand = seq_range.unsqueeze(0).expand(batch_size, max_len)
+    seq_range_expand = Variable(seq_range_expand)
+    if sequence_length.is_cuda:
+        seq_range_expand = seq_range_expand.cuda()
+    seq_length_expand = (sequence_length.unsqueeze(1)
+                         .expand_as(seq_range_expand))
+    return seq_range_expand < seq_length_expand
+
+
+def masked_cross_entropy(logits, target, length):
+    length = Variable(torch.LongTensor(length)).cuda()
+
+    """
+    Args:
+        logits: A Variable containing a FloatTensor of size
+            (batch, max_len, num_classes) which contains the
+            unnormalized probability for each class.
+        target: A Variable containing a LongTensor of size
+            (batch, max_len) which contains the index of the true
+            class for each corresponding step.
+        length: A Variable containing a LongTensor of size (batch,)
+            which contains the length of each data in a batch.
+    Returns:
+        loss: An average loss value masked by the length.
+    """
+
+    # logits_flat: (batch * max_len, num_classes)
+    logits_flat = logits.view(-1, logits.size(-1))
+    # log_probs_flat: (batch * max_len, num_classes)
+    log_probs_flat = functional.log_softmax(logits_flat)
+    # target_flat: (batch * max_len, 1)
+    target_flat = target.view(-1, 1)
+    # losses_flat: (batch * max_len, 1)
+    losses_flat = -torch.gather(log_probs_flat, dim=1, index=target_flat)
+    # losses: (batch, max_len)
+    losses = losses_flat.view(*target.size())
+    # mask: (batch, max_len)
+    mask = sequence_mask(sequence_length=length, max_len=target.size(1))
+    losses = losses * mask.float()
+    loss = losses.sum() / length.float().sum()
+    return loss
+
+
 def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch):
     loss_hist = []
     for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
-        source, source_lens, target, target_lens  = source.to(device), source_lens.to(device), target.to(device), target_lens.to(device) 
+        source, source_lens, target, target_lens  = source.to(device), source_lens.to(device), target.to(device), target_lens.to(device)
         encoder.train()
         decoder.train()
 
