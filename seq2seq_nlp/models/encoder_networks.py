@@ -38,7 +38,7 @@ class RNNEncoder(nn.Module):
         self.num_directions = 2 if bidirectional else 1
         self.return_type = return_type
 
-        self.table_lookup = nn.Embedding(vocab_size, embed_size, padding_idx=0)
+        self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.rnn = self.rnn(embed_size, hidden_size, num_layers,
                             bidirectional=bidirectional, batch_first=True,
                             dropout=prob_dropout_hidden)
@@ -50,15 +50,15 @@ class RNNEncoder(nn.Module):
     def forward(self, x, x_len):
         batch_size = x.size(0)
 
-        embed = self.table_lookup(x)
+        embed = self.embedding(x)
         embed = pack_padded_sequence(embed, x_lens.squeeze(dim=1).long(),
                                      batch_first=True)
         out, h_n = self.rnn(embed, self.init_state(batch_size))
         out, _ = pad_packed_sequence(out, batch_first=True,
                                      total_length=x.size(1))
-        if self.return_type == 'last_time_step':
-            out = h_n
-        return out
+        # if self.return_type == 'last_time_step':
+        #     out = h_n
+        return out, h_n
 
 
 class CNNEncoder(nn.Module):
@@ -70,7 +70,7 @@ class CNNEncoder(nn.Module):
         self.hidden_size = hidden_size
         self.kernel_sizes = kernel_sizes
 
-        self.table_lookup = nn.Embedding(vocab_size, embed_size, padding_idx=0)
+        self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=0)
 
         dropout = nn.Dropout if dropout_type == '1d' else nn.Dropout2d
         # TODO: implement dropout2d
@@ -90,7 +90,7 @@ class CNNEncoder(nn.Module):
         self.cnn_sequences = nn.ModuleList(cnn_sequences)
 
     def forward(self, x, x_lens):
-        embed = self.table_lookup(x).transpose(1, 2)  # B, H, T
+        embed = self.embedding(x).transpose(1, 2)  # B, H, T
         outputs = []
         for ix, cnn in enumerate(self.cnn_sequences):
             out = cnn(embed).transpose(1,2)  # (B, T, H)

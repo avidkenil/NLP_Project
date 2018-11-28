@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch):
     loss_hist = []
     for batch_idx, (x, y) in enumerate(dataloader):
-        x, y = x.to(device).float(), y.to(device).long()
+        x, y = x.to(device), y.to(device)
         encoder.train()
         decoder.train()
 
@@ -50,7 +50,7 @@ def test(encoder, decoder, dataloader, criterion, device):
     output_hist = []
     with torch.no_grad():
         for batch_idx, (x, y) in enumerate(dataloader):
-            x, y = x.to(device).float(), y.to(device).long()
+            x, y = x.to(device), y.to(device)
             encoder_output = encoder(x)
             decoder_output = decoder(encoder_output)
             loss = criterion(decoder_output, y)
@@ -122,14 +122,11 @@ def load_txt(path, f=lambda x: x):
         data = [f(line) for line in fin if line]
     return data
 
-
 def load_raw_data(path):
     return load_txt(path, f=lambda x: x.strip().split())
 
-
 def load_ind_data(path):
     return load_txt(path, f=lambda line: [int(x) for x in line.strip().split()])
-
 
 def dump_ind_data(obj, path):
     with open(path, 'w') as fout:
