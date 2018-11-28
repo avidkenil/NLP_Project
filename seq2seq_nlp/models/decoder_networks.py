@@ -11,7 +11,7 @@ class RNNDecoder(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.attn = attn
         self.rnn = nn.GRU(embed_size, hidden_size=encoder_directions*encoder_hidden_size, batch_first=True)
-        self.fc1 = nn.Linear(hidden_size, vocab_size)
+        self.fc1 = nn.Linear(encoder_directions*encoder_hidden_size, vocab_size)
         # self.fc2 = nn.Linear(fc_hidden_size, vocab_size)
 
     def forward(x, decoder_hidden_size, source_lens=None, encoder_outputs=None):

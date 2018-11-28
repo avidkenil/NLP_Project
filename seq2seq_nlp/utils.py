@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 
 def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch):
     loss_hist = []
-    for batch_idx, (x, y) in enumerate(dataloader):
-        x, y = x.to(device), y.to(device)
+    for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
+        source, source_lens, target, target_lens  = source.to(device), source_lens.to(device), target.to(device), target_lens.to(device) 
         encoder.train()
         decoder.train()
 

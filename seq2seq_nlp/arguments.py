@@ -19,8 +19,10 @@ def get_args():
                         help='source dataset vocabulary size', required=False, default=50000, type=int)
     parser.add_argument('--target-vocab', metavar='TARGET_VOCAB', dest='target_vocab', \
                         help='target dataset vocabulary size', required=False, default=50000, type=int)
-    parser.add_argument('--max-len', metavar='MAX_LEN', dest='max_len', help='max sentence length', \
+    parser.add_argument('--max-len-source', metavar='MAX_LEN_SOURCE', dest='max_len_source', help='max sentence length source', \
                         required=False, type=int, default=300)
+    parser.add_argument('--max-len-target', metavar='MAX_LEN_TARGET', dest='max_len_target', help='max sentence length target', \
+                        required=False, type=int, default=600)
     parser.add_argument('--batch-size', metavar='BATCH_SIZE', dest='batch_size', help='batch size', \
                         required=False, type=int, default=64)
     parser.add_argument('--epochs', metavar='EPOCHS', dest='epochs', help='number of epochs', \

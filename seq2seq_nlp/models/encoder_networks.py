@@ -114,84 +114,46 @@ class CNNEncoder(nn.Module):
         return out
 
 
-if __name__ == '__main__':
-
-    x_lens = torch.FloatTensor([[5], [4], [4], [2]])
-    V, B, T, H = 5000, 4, 5, 500
-
-    x = torch.randint(0, V, size=(B, T)).long()
-
-    print('#### Tests rnn')
-    gru = RNNEncoder('gru', V, 500, H, 3, True, prob_dropout_hidden=.5)
-    out = gru(x, x_lens)
-    assert(out.size() == (B, T, 2 * H))
-    print('\ttests passed')
-    print()
-    print('#### Tests cnn')
-    L = 1
-    kernel_sizes = [2]
-    print(f'\tB={B}; H={H}, T={T}, L={L}, kernel_sizes={kernel_sizes}')
-    cnn_encoder = CNNEncoder(V, 500, H, num_layers=1, kernel_sizes=kernel_sizes, prob_dropout_hidden=.5, dropout_type='1d')
-    out = cnn_encoder(x, x_lens)
-    assert(out.size() == (B, len(kernel_sizes) * H))
-    print('\ttests passed')
-    print()
-
-
-    print('#### Tests cnn')
-    L = 3
-    kernel_sizes = [2]
-    print(f'\tB={B}; H={H}, T={T}, L={L}, kernel_sizes={kernel_sizes}')
-    cnn_encoder = CNNEncoder(V, 500, H, num_layers=L, kernel_sizes=kernel_sizes, prob_dropout_hidden=.5, dropout_type='1d')
-    out = cnn_encoder(x, x_lens)
-    assert(out.size() == (B, len(kernel_sizes) * H))
-    print('\ttests passed')
-    print()
-
-    print('#### Tests cnn')
-    L = 3
-    kernel_sizes = [2,3,4,5]
-    print(f'\tB={B}; H={H}, T={T}, L={L}, kernel_sizes={kernel_sizes}')
-    cnn_encoder = CNNEncoder(V, 500, H, num_layers=L, kernel_sizes=kernel_sizes, prob_dropout_hidden=.5, dropout_type='1d')
-    out = cnn_encoder(x, x_lens)
-    assert(out.size() == (B, len(kernel_sizes) * H))
-    print('\ttests passed')
-    print()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# if __name__ == '__main__':
+#
+#     x_lens = torch.FloatTensor([[5], [4], [4], [2]])
+#     V, B, T, H = 5000, 4, 5, 500
+#
+#     x = torch.randint(0, V, size=(B, T)).long()
+#
+#     print('#### Tests rnn')
+#     gru = RNNEncoder('gru', V, 500, H, 3, True, prob_dropout_hidden=.5)
+#     out = gru(x, x_lens)
+#     assert(out.size() == (B, T, 2 * H))
+#     print('\ttests passed')
+#     print()
+#     print('#### Tests cnn')
+#     L = 1
+#     kernel_sizes = [2]
+#     print(f'\tB={B}; H={H}, T={T}, L={L}, kernel_sizes={kernel_sizes}')
+#     cnn_encoder = CNNEncoder(V, 500, H, num_layers=1, kernel_sizes=kernel_sizes, prob_dropout_hidden=.5, dropout_type='1d')
+#     out = cnn_encoder(x, x_lens)
+#     assert(out.size() == (B, len(kernel_sizes) * H))
+#     print('\ttests passed')
+#     print()
+#
+#
+#     print('#### Tests cnn')
+#     L = 3
+#     kernel_sizes = [2]
+#     print(f'\tB={B}; H={H}, T={T}, L={L}, kernel_sizes={kernel_sizes}')
+#     cnn_encoder = CNNEncoder(V, 500, H, num_layers=L, kernel_sizes=kernel_sizes, prob_dropout_hidden=.5, dropout_type='1d')
+#     out = cnn_encoder(x, x_lens)
+#     assert(out.size() == (B, len(kernel_sizes) * H))
+#     print('\ttests passed')
+#     print()
+#
+#     print('#### Tests cnn')
+#     L = 3
+#     kernel_sizes = [2,3,4,5]
+#     print(f'\tB={B}; H={H}, T={T}, L={L}, kernel_sizes={kernel_sizes}')
+#     cnn_encoder = CNNEncoder(V, 500, H, num_layers=L, kernel_sizes=kernel_sizes, prob_dropout_hidden=.5, dropout_type='1d')
+#     out = cnn_encoder(x, x_lens)
+#     assert(out.size() == (B, len(kernel_sizes) * H))
+#     print('\ttests passed')
+#     print()

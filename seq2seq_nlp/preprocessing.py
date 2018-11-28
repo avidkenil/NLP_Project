@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from collections import Counter
 from seq2seq_nlp.datasets import *
 from seq2seq_nlp.utils import *
-
+from functools import partial
 # not removing punctuation: does BLEU count correctly translated punctuation?
 # not tokenizing
 
@@ -99,7 +99,7 @@ def get_data_indices(project_dir, data_dir, kind, dataset, vocab_size, is_source
 
 def generate_dataloader(project_dir, data_dir, source_dataset, target_dataset, \
                         kind, source_vocab_size, target_vocab_size, batch_size, \
-                        max_len, force=False):
+                        max_len_source, max_len_target, force=False):
     '''
     kind (str): possible values - 'train' or 'dev' or 'test'
     '''
@@ -116,8 +116,13 @@ def generate_dataloader(project_dir, data_dir, source_dataset, target_dataset, \
                              vocab_size, is_source, force)
 
     logging.info('Creating Dataset')
-    dataset = NMTDataset(data, max_len=max_len, pad_idx=PAD_IDX)
+    if(max_len_source == -1):
+        max_len_source = np.array([len(sent) for sent in data['source']], dtype=np.int64).max()
+    if(max_len_target == -1):
+        max_len_target = np.array([len(sent) for sent in data['target']], dtype=np.int64).max()
+    dataset = NMTDataset(data, max_len_source=max_len_source, max_len_target=max_len_target, pad_idx=PAD_IDX)
     shuffle = True if kind == 'train' else False
     logging.info('Creating Dataloader')
+    params = (max_len_source,max_len_target)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, \
-                      collate_fn=nmt_collate_fn)
+                      collate_fn=partial(nmt_collate_fn,max_len_source = max_len_source, max_len_target = max_len_target)), len(id2token['source']), len(id2token['target']), max_len_source, max_len_target

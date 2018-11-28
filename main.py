@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 
 from seq2seq_nlp.arguments import get_args
 from seq2seq_nlp.preprocessing import generate_dataloader
-# from seq2seq_nlp.models.encoder_networks import RNNEncoder
-# from seq2seq_nlp.models.decoder_networks import RNNDecoder
+from seq2seq_nlp.models.encoder_networks import RNNEncoder
+from seq2seq_nlp.models.decoder_networks import RNNDecoder
 # from seq2seq_nlp.models.attention import VanillaAttention
 from seq2seq_nlp.utils import *
 
@@ -29,7 +29,8 @@ DATA_DIR,  PLOTS_DIR, LOGGING_DIR = args.data_dir, 'plots', 'logs'
 CHECKPOINTS_DIR, CHECKPOINT_FILE = args.checkpoints_dir, args.load_ckpt
 SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
 SOURCE_VOCAB, TARGET_VOCAB = args.source_vocab, args.target_vocab
-MAX_LEN = args.max_len
+MAX_LEN_SOURCE = args.max_len_source
+MAX_LEN_TARGET = args.max_len_target
 
 BATCH_SIZE = args.batch_size    # input batch size for training
 N_EPOCHS = args.epochs          # number of epochs to train
@@ -55,19 +56,21 @@ def main():
 
     global_vars = globals().copy()
     print_config(global_vars) # Print all global variables defined above
+    global SOURCE_VOCAB, TARGET_VOCAB
+    max_len_source, max_len_target = MAX_LEN_SOURCE, MAX_LEN_TARGET
+    train_loader, SOURCE_VOCAB, TARGET_VOCAB, max_len_source, max_len_target = generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'train', \
+                                       SOURCE_VOCAB, TARGET_VOCAB, BATCH_SIZE, max_len_source, max_len_target, args.force)
 
-
-    train_loader = generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'train', \
-                                       SOURCE_VOCAB, TARGET_VOCAB, BATCH_SIZE, MAX_LEN, args.force)
-    val_loader = generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'dev', \
-                                     SOURCE_VOCAB, TARGET_VOCAB, BATCH_SIZE, MAX_LEN, args.force)
-
+    #MAX_LEN_SOURCE, MAX_LEN_TARGET = max_len_source, max_len_target
+    val_loader, _, _, _, _ = generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'dev', \
+                                     SOURCE_VOCAB, TARGET_VOCAB, BATCH_SIZE, max_len_source, max_len_target, args.force)
+    import pdb;pdb.set_trace()
     start_epoch = 0 # Initialize starting epoch number (used later if checkpoint loaded)
     stop_epoch = N_EPOCHS+start_epoch # Store epoch upto which model is trained (used in case of KeyboardInterrupt)
 
     logging.info('Creating models...')
-    encoder = RNNEncoder()
-    decoder = RNNDecoder()
+    encoder = RNNEncoder('gru', SOURCE_VOCAB, 256, 256, 1, 2)
+    decoder = RNNDecoder(TARGET_VOCAB, 256, 512, None, 2,256)
     logging.info('Done.')
 
     # Define criteria and optimizer
