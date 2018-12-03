@@ -14,7 +14,7 @@ class RNNEncoder(nn.Module):
 
     def __init__(self, kind, vocab_size, embed_size, hidden_size, num_layers,
                  bidirectional, return_type='full_last_layer',
-                 prob_dropout_hidden=0):
+                 prob_dropout_hidden=0,device = 'cpu'):
         '''
         Arg in:
             kind (str): one of: 'rnn', 'gru', 'lstm'
@@ -42,26 +42,31 @@ class RNNEncoder(nn.Module):
         self.rnn = self.rnn(embed_size, hidden_size, num_layers,
                             bidirectional=bidirectional, batch_first=True,
                             dropout=prob_dropout_hidden)
+        self.device = device
 
     def _init_state(self, batch_size):
         return torch.randn(self.num_layers * self.num_directions, batch_size,
-                           self.hidden_size)
+                           self.hidden_size).to(self.device)
 
     def forward(self, x, x_lens):
-        batch_size = x.size(0)
+        try:
+            batch_size = x.size(0)
 
-        embed = self.embedding(x)
-        embed = pack_padded_sequence(embed, x_lens.squeeze(dim=1).long(),
-                                     batch_first=True)
-        out, h_n = self.rnn(embed, self._init_state(batch_size))
-        out, _ = pad_packed_sequence(out, batch_first=True,
-                                     total_length=x.size(1))
-        # if self.return_type == 'last_time_step':
-        #     out = h_n
-        #remember the h_n will always be of the shape num_layers*num_directions,batch, hidden_size
-        if self.num_directions == 2:
-            h_n = self._cat_hidden(h_n)
-        return out, h_n
+            embed = self.embedding(x)
+            embed = pack_padded_sequence(embed, x_lens.squeeze(dim=1).long(),
+                                         batch_first=True)
+            out, h_n = self.rnn(embed, self._init_state(batch_size))
+            out, _ = pad_packed_sequence(out, batch_first=True,
+                                         total_length=x.size(1))
+            # if self.return_type == 'last_time_step':
+            #     out = h_n
+            #remember the h_n will always be of the shape num_layers*num_directions,batch, hidden_size
+            if self.num_directions == 2:
+                h_n = self._cat_hidden(h_n)
+            return out, h_n
+        except Exception as e:
+            print(e)
+            import pdb;pdb.set_trace()
 
     #if bidirectional then got to reshape the hidden from
     # (num_layers*num_directions,batch, hidden_size) -> (num_layers, batch, hidden_size*num_directions)

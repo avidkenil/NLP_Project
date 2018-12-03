@@ -83,17 +83,16 @@ def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_
         if encoder.num_layers == 1 :
             decoder_hidden_step = decoder_hidden_step.unsqueeze(0)
         input_seq = target[:,0]
+        loss = 0
         for step in range(max_batch_target_len):
 
             decoder_output_step, decoder_hidden_step, attn_weights_step = decoder(input_seq,decoder_hidden_step,source_lens,encoder_output)
             decoder_outputs[:,step,:] = decoder_output_step
             input_seq = target[:,step] #change this line to change what to give as the next input to the decoder
-            loss += criterion(decoder_output_step,input_seq)
+            loss = loss + criterion(decoder_output_step,input_seq)
             #check if need to repackage hidden here or after the entire batch
 
         #applying masked cross entropy just for the outputs till the target lens for individual sentence in a batch
-        #import pdb;pdb.set_trace()
-
         #loss = masked_cross_entropy(decoder_outputs[:,:max_batch_target_len,:].contiguous(),target,target_lens,device)
         #loss = criterion(decoder_output, y)
         loss.backward()
@@ -103,10 +102,12 @@ def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_
         loss_train = loss.item() * len(source) / len(dataloader.dataset)
         loss_hist.append(loss_train)
 
-        if (batch_idx+1) % (len(dataloader.dataset)//(20*source.shape[0])) == 0:
+        if (batch_idx+1) % (len(dataloader.dataset)//(1000*source.shape[0])) == 0:
             logging.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, (batch_idx+1) * source.shape[0], len(dataloader.dataset),
                 100. * (batch_idx+1) / len(dataloader), loss.item()))
+
+        del source, source_lens, target, target_lens, decoder_outputs
 
     optimizer.zero_grad()
     return loss_hist

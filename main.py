@@ -79,7 +79,7 @@ def main():
                 num_layers = 1,
                 bidirectional = True,
                 return_type='full_last_layer',
-                prob_dropout_hidden=0)
+                prob_dropout_hidden=0,device=DEVICE)
 
 
     decoder = RNNDecoder(
@@ -94,8 +94,9 @@ def main():
     logging.info('Done.')
 
     # Define criteria and optimizer
-    criterion_train = nn.CrossEntropyLoss()
-    criterion_test = nn.CrossEntropyLoss(reduction='sum')
+    #ignore padding indexes
+    criterion_train = nn.CrossEntropyLoss(ignore_index=0)
+    criterion_test = nn.CrossEntropyLoss(reduction='sum',ignore_index=0)
     optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=LR)
 
     train_loss_history, train_accuracy_history = [], []
