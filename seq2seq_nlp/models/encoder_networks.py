@@ -43,22 +43,33 @@ class RNNEncoder(nn.Module):
                             bidirectional=bidirectional, batch_first=True,
                             dropout=prob_dropout_hidden)
 
-    def init_state(self, batch_size):
+    def _init_state(self, batch_size):
         return torch.randn(self.num_layers * self.num_directions, batch_size,
                            self.hidden_size)
 
-    def forward(self, x, x_len):
+    def forward(self, x, x_lens):
         batch_size = x.size(0)
 
         embed = self.embedding(x)
         embed = pack_padded_sequence(embed, x_lens.squeeze(dim=1).long(),
                                      batch_first=True)
-        out, h_n = self.rnn(embed, self.init_state(batch_size))
+        out, h_n = self.rnn(embed, self._init_state(batch_size))
         out, _ = pad_packed_sequence(out, batch_first=True,
                                      total_length=x.size(1))
         # if self.return_type == 'last_time_step':
         #     out = h_n
+        #remember the h_n will always be of the shape num_layers*num_directions,batch, hidden_size
+        if self.num_directions == 2:
+            h_n = self._cat_hidden(h_n)
         return out, h_n
+
+    #if bidirectional then got to reshape the hidden from
+    # (num_layers*num_directions,batch, hidden_size) -> (num_layers, batch, hidden_size*num_directions)
+    #currently just works for gru, and we will assume that we will just test for gru
+    def _cat_hidden(self,h_n):
+        h_n = torch.cat([h_n[0:h_n.size(0):2],h_n[1:h_n.size(0):2]],dim=2)
+        return h_n
+
 
 
 class CNNEncoder(nn.Module):

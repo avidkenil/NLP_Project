@@ -18,21 +18,21 @@ import matplotlib.pyplot as plt
 #custom loss function with masked outputs till the sequence length
 # taken from https://github.com/spro/practical-pytorch/tree/master/seq2seq-translation
 # make changes accordingly for pytorch 0.4 and integrating to our code.
-def sequence_mask(sequence_length, max_len=None):
+def sequence_mask(sequence_length,device,max_len=None,):
     if max_len is None:
         max_len = sequence_length.data.max()
     batch_size = sequence_length.size(0)
     seq_range = torch.range(0, max_len - 1).long()
-    seq_range_expand = seq_range.unsqueeze(0).expand(batch_size, max_len)
-    seq_range_expand = Variable(seq_range_expand)
-    if sequence_length.is_cuda:
-        seq_range_expand = seq_range_expand.cuda()
+    seq_range_expand = seq_range.unsqueeze(0).expand(batch_size, max_len).to(device)
+    #seq_range_expand = Variable(seq_range_expand)
+    # if sequence_length.is_cuda:
+    #     seq_range_expand = seq_range_expand.cuda()
     seq_length_expand = (sequence_length.unsqueeze(1)
                          .expand_as(seq_range_expand))
     return seq_range_expand < seq_length_expand
 
 
-def masked_cross_entropy(logits, target, length):
+def masked_cross_entropy(logits, target, length,device):
     #length = Variable(torch.LongTensor(length)).cuda()
 
     """
@@ -60,13 +60,13 @@ def masked_cross_entropy(logits, target, length):
     # losses: (batch, max_len)
     losses = losses_flat.view(*target.size())
     # mask: (batch, max_len)
-    mask = sequence_mask(sequence_length=length, max_len=target.size(1))
+    mask = sequence_mask(sequence_length=length, max_len=target.size(1),device=device)
     losses = losses * mask.float()
     loss = losses.sum() / length.float().sum()
     return loss
 
 
-def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch):
+def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_len_target):
     loss_hist = []
     for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
         source, source_lens, target, target_lens  = source.to(device), source_lens.to(device), target.to(device), target_lens.to(device)
@@ -74,21 +74,38 @@ def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch):
         decoder.train()
 
         optimizer.zero_grad()
+        max_batch_target_len = target_lens.data.max().item()
+        #init the decoder outputs with zeros and then fill them up with the values
+        decoder_outputs = torch.zeros(source.size(0),max_len_target,decoder.vocab_size).to(device)
+        encoder_output,encoder_hidden = encoder(source,source_lens)
+        #doing complete teacher forcing first and then will add the probability based teacher forcing
+        decoder_hidden_step = encoder_hidden if decoder.num_layers != 1 else encoder_hidden[-1]
+        if encoder.num_layers == 1 :
+            decoder_hidden_step = decoder_hidden_step.unsqueeze(0)
+        input_seq = target[:,0]
+        for step in range(max_batch_target_len):
 
-        encoder_output = encoder(x)
-        decoder_output = decoder(encoder_output)
+            decoder_output_step, decoder_hidden_step, attn_weights_step = decoder(input_seq,decoder_hidden_step,source_lens,encoder_output)
+            decoder_outputs[:,step,:] = decoder_output_step
+            input_seq = target[:,step] #change this line to change what to give as the next input to the decoder
+            loss += criterion(decoder_output_step,input_seq)
+            #check if need to repackage hidden here or after the entire batch
 
-        loss = criterion(decoder_output, y)
+        #applying masked cross entropy just for the outputs till the target lens for individual sentence in a batch
+        #import pdb;pdb.set_trace()
+
+        #loss = masked_cross_entropy(decoder_outputs[:,:max_batch_target_len,:].contiguous(),target,target_lens,device)
+        #loss = criterion(decoder_output, y)
         loss.backward()
         optimizer.step()
 
         # Accurately compute loss, because of different batch size
-        loss_train = loss.item() * len(x) / len(dataloader.dataset)
+        loss_train = loss.item() * len(source) / len(dataloader.dataset)
         loss_hist.append(loss_train)
 
-        if (batch_idx+1) % (len(dataloader.dataset)//(5*y.shape[0])) == 0:
+        if (batch_idx+1) % (len(dataloader.dataset)//(20*source.shape[0])) == 0:
             logging.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, (batch_idx+1) * y.shape[0], len(dataloader.dataset),
+                epoch, (batch_idx+1) * source.shape[0], len(dataloader.dataset),
                 100. * (batch_idx+1) / len(dataloader), loss.item()))
 
     optimizer.zero_grad()

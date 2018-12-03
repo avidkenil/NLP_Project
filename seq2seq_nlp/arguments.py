@@ -24,7 +24,7 @@ def get_args():
     parser.add_argument('--max-len-target', metavar='MAX_LEN_TARGET', dest='max_len_target', help='max sentence length target', \
                         required=False, type=int, default=600)
     parser.add_argument('--batch-size', metavar='BATCH_SIZE', dest='batch_size', help='batch size', \
-                        required=False, type=int, default=64)
+                        required=False, type=int, default=32)
     parser.add_argument('--epochs', metavar='EPOCHS', dest='epochs', help='number of epochs', \
                         required=False, type=int, default=10)
     parser.add_argument('--device', metavar='DEVICE', dest='device', help='device', required=False)

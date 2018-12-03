@@ -46,7 +46,6 @@ def nmt_collate_fn(batch, max_len_source, max_len_target):
     #get the max lengths of the source and the target
     max_batch_len_source = min(max_len_source,max(source_lens).item())
     max_batch_len_target = min(max_len_target,max(target_lens).item())
-    import pdb;pdb.set_trace()
     x = torch.LongTensor(batch_size, max_batch_len_source)
     x_lens = torch.FloatTensor(batch_size, 1)
     y = torch.LongTensor(batch_size, max_batch_len_target)

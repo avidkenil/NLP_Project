@@ -64,13 +64,31 @@ def main():
     #MAX_LEN_SOURCE, MAX_LEN_TARGET = max_len_source, max_len_target
     val_loader, _, _, _, _ = generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'dev', \
                                      SOURCE_VOCAB, TARGET_VOCAB, BATCH_SIZE, max_len_source, max_len_target, args.force)
-    import pdb;pdb.set_trace()
+    #import pdb;pdb.set_trace()
     start_epoch = 0 # Initialize starting epoch number (used later if checkpoint loaded)
     stop_epoch = N_EPOCHS+start_epoch # Store epoch upto which model is trained (used in case of KeyboardInterrupt)
 
     logging.info('Creating models...')
-    encoder = RNNEncoder('gru', SOURCE_VOCAB, 256, 256, 1, 2)
-    decoder = RNNDecoder(TARGET_VOCAB, 256, 512, None, 2,256)
+    #make sure encoder doesn't have less layers than decoder.
+    encoder = RNNEncoder(kind = 'gru',
+                vocab_size = SOURCE_VOCAB,
+                embed_size = 256,
+                hidden_size = 256,
+                num_layers = 1,
+                bidirectional = True,
+                return_type='full_last_layer',
+                prob_dropout_hidden=0)
+
+
+    decoder = RNNDecoder(
+            vocab_size = TARGET_VOCAB,
+            embed_size = 256,
+            fc_hidden_size=512,
+            attn=None,
+            encoder_directions=encoder.num_directions,
+            encoder_hidden_size=encoder.hidden_size, \
+            dropout=0.5,num_layers = 1)
+
     logging.info('Done.')
 
     # Define criteria and optimizer
@@ -110,7 +128,8 @@ def main():
                 dataloader=train_loader,
                 optimizer=optimizer,
                 device=DEVICE,
-                epoch=epoch
+                epoch=epoch,
+                max_len_target=max_len_target
             )
 
             val_loss, val_pred, val_true = test(
