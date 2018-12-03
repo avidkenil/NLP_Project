@@ -32,7 +32,7 @@ def get_counts(project_dir, data_dir, dataset, vocab_size, is_source, force=Fals
             logging.info('Already have all tokens')
             all_tokens = load_object(all_tokens_path)
         else:
-            data_path = os.path.join(project_dir, data_dir, f'train.tok.{dataset}')
+            data_path = os.path.join(project_dir, data_dir, f'train.tok.clean.{dataset}')
             data = load_raw_data(data_path)
             logging.info(f'Is source: {is_source}')
             all_tokens = [tok for sentence in data for tok in sentence]
@@ -81,7 +81,7 @@ def get_data_indices(project_dir, data_dir, kind, dataset, vocab_size, is_source
     have_indices = os.path.isfile(data_ind_path) and os.path.isfile(id2token_path) and os.path.isfile(token2id_path)
     if kind == 'train':
         if force:
-            data = load_raw_data(os.path.join(project_dir, data_dir, f'train.tok.{dataset}'))
+            data = load_raw_data(os.path.join(project_dir, data_dir, f'train.tok.clean.{dataset}'))
             id2token, token2id = get_vocab(project_dir, data_dir, dataset, id2token_path, \
                                            token2id_path, vocab_size, is_source, force)
             data_ind = transform(data, token2id)
@@ -93,7 +93,7 @@ def get_data_indices(project_dir, data_dir, kind, dataset, vocab_size, is_source
             id2token = load_object(id2token_path)
             token2id = load_object(token2id_path)
     else:
-        data = load_raw_data(os.path.join(project_dir, data_dir, f'{kind}.tok.{dataset}'))
+        data = load_raw_data(os.path.join(project_dir, data_dir, f'{kind}.tok.clean.{dataset}'))
         data_ind = transform(data, token2id)
         logging.info('Saving the indices data')
         dump_ind_data(data_ind, data_ind_path)
@@ -121,6 +121,14 @@ def generate_dataloader(project_dir, data_dir, source_dataset, target_dataset, k
         id2token, token2id = {}, {}
     else:
         assert id2token is not None and token2id is not None
+
+
+    source_path = os.path.join(project_dir, data_dir, f'{kind}.tok.{source_dataset}')
+    target_path = os.path.join(project_dir, data_dir, f'{kind}.tok.{target_dataset}')
+    source_clean_path = os.path.join(project_dir, data_dir, f'{kind}.tok.clean.{source_dataset}')
+    target_clean_path = os.path.join(project_dir, data_dir, f'{kind}.tok.clean.{target_dataset}')
+
+    clean_paired_files(source_path, target_path, source_clean_path, target_clean_path)
 
     for is_source, dataset, vocab_size in zip(are_source, datasets, vocab_sizes):
         key = 'source' if is_source else 'target'

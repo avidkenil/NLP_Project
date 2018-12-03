@@ -209,6 +209,21 @@ def load_object(filepath):
         return None
     return object
 
+def clean_paired_files(path1, path2, path_out1, path_out2):
+    ixs_to_drop = set()
+    data1 = load_txt(path1)
+    data2 = load_txt(path2)
+
+    final_data1 = []
+    final_data2 = []
+    for ele1, ele2 in zip(data1, data2):
+        if ele1.strip() and ele2.strip():
+            final_data1.append(ele1)
+            final_data2.append(ele2)
+
+    dump_txt_data(final_data1, path_out1)
+    dump_txt_data(final_data2, path_out2)
+
 def load_txt(path, f=lambda x: x):
     '''
     1. loads data from text file <path> where each line is a sentence.
@@ -216,7 +231,7 @@ def load_txt(path, f=lambda x: x):
        function <f> to each individual element
     '''
     with open(path, 'r') as fin:
-        data = [f(line) for line in fin if line]
+        data = [f(line) for line in fin if line.strip()]
     return data
 
 def load_raw_data(path):
@@ -224,6 +239,11 @@ def load_raw_data(path):
 
 def load_ind_data(path):
     return load_txt(path, f=lambda line: [int(x) for x in line.strip().split()])
+
+def dump_txt_data(obj, path):
+    with open(path, 'w') as fout:
+        for line in obj:
+            fout.write(line)
 
 def dump_ind_data(obj, path):
     with open(path, 'w') as fout:
