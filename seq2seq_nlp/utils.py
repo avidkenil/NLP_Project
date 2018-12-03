@@ -65,6 +65,14 @@ def masked_cross_entropy(logits, target, length, device):
     return loss
 
 
+def repackage_hidden(h):
+    """Wraps hidden states in new Tensors, to detach them from their history."""
+    if isinstance(h, torch.Tensor):
+        return h.detach()
+    else:
+        return tuple(repackage_hidden(v) for v in h)
+
+
 def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_len_target):
     loss_hist = []
     for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
@@ -90,6 +98,8 @@ def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_
             decoder_outputs[:,step,:] = decoder_output_step
             input_seq = target[:,step] #change this line to change what to give as the next input to the decoder
             loss += criterion(decoder_output_step,input_seq)
+            decoder_hidden_step = repackage_hidden(decoder_hidden_step)
+
             # check if need to repackage hidden here or after the entire batch
 
         # applying masked cross entropy just for the outputs till the target lens for individual sentence in a batch
@@ -98,7 +108,6 @@ def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
         # Accurately compute loss, because of different batch size
         loss_train = loss.item() * len(source) / len(dataloader.dataset)
         loss_hist.append(loss_train)
