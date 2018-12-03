@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 
 
 class NMTDataset(Dataset):
-    def __init__(self, data, max_len_source=300, max_len_target = 300, pad_idx=0):
+    def __init__(self, data, max_len_source=300, max_len_target=300, pad_idx=0):
         logging.info('Truncating to maximum lengths and '\
                       'padding all sequences with required zeros.')
 
@@ -47,19 +47,15 @@ def nmt_collate_fn(batch, max_len_source, max_len_target):
     source_lens = np.array([batch[i][1] for i in range(len(batch))])
     target_lens = np.array([batch[i][3] for i in range(len(batch))])
 
-    # Get the max lengths of the source and the target
-    max_batch_len_source = min(max_len_source,max(source_lens).item())
-    max_batch_len_target = min(max_len_target,max(target_lens).item())
-
-    x = torch.LongTensor(batch_size, max_batch_len_source)
+    x = torch.LongTensor(batch_size, max_len_source)
     x_lens = torch.FloatTensor(batch_size, 1)
-    y = torch.LongTensor(batch_size, max_batch_len_target)
+    y = torch.LongTensor(batch_size, max_len_target)
     y_lens = torch.FloatTensor(batch_size, 1)
 
     for ix, (source, source_len, target, target_len) in enumerate(batch_sorted):
-        x[ix, :] = source[:max_batch_len_source]
+        x[ix, :] = source[:max_len_source]
         x_lens[ix, :] = source_len
-        y[ix, :] = target[:max_batch_len_target]
+        y[ix, :] = target[:max_len_target]
         y_lens[ix, :] = target_len
 
     return x.long(), x_lens.long(), y.long(), y_lens.long()
