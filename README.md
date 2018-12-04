@@ -28,7 +28,8 @@ usage: main.py [-h] [--project-dir PROJECT_DIR] [--data-dir DATA_DIR]
                [--source-dataset SOURCE_DATASET]
                [--target-dataset TARGET_DATASET]
                [--checkpoints-dir CHECKPOINTS_DIR]
-               [--load-ckpt LOAD_CHECKPOINT] [--source-vocab SOURCE_VOCAB]
+               [--load-ckpt LOAD_CHECKPOINT] [--load-enc-ckpt LOAD_ENC_CKPT]
+               [--load-dec-ckpt LOAD_DEC_CKPT] [--source-vocab SOURCE_VOCAB]
                [--target-vocab TARGET_VOCAB] [--max-len-source MAX_LEN_SOURCE]
                [--max-len-target MAX_LEN_TARGET] [--batch-size BATCH_SIZE]
                [--epochs EPOCHS] [--device DEVICE] [--device-id DEVICE_ID]
@@ -52,6 +53,8 @@ optional arguments:
   --data-dir DATA_DIR                         path to data directory, default="data/vi-en"
   --checkpoints-dir CHECKPOINTS_DIR           path to checkpoints directory
   --load-ckpt LOAD_CHECKPOINT                 name of checkpoint file to load
+    --load-enc-ckpt LOAD_ENC_CKPT             name of encoder file to load
+  --load-dec-ckpt LOAD_DEC_CKPT               name of decoder file to load
   --source-vocab SOURCE_VOCAB                 source dataset vocabulary size, default=50000
   --target-vocab TARGET_VOCAB                 target dataset vocabulary size, default=50000
   --max-len-source MAX_LEN_SOURCE             max sentence length of source, default=300
