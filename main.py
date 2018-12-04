@@ -27,6 +27,7 @@ args = get_args()
 PROJECT_DIR = args.project_dir
 DATA_DIR,  PLOTS_DIR, LOGGING_DIR = args.data_dir, 'plots', 'logs'
 CHECKPOINTS_DIR, CHECKPOINT_FILE = args.checkpoints_dir, args.load_ckpt
+ENCODER_MODEL_CKPT, DECODER_MODEL_CKPT = args.load_enc_ckpt, args.load_dec_ckpt
 SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
 SOURCE_VOCAB, TARGET_VOCAB = args.source_vocab, args.target_vocab
 MAX_LEN_SOURCE, MAX_LEN_TARGET = args.max_len_source, args.max_len_target
@@ -35,6 +36,7 @@ CLIP_PARAM = args.clip_param
 # Model hyperparameters
 ENCODER = args.encoder          # Type of encoder
 NUM_DIRECTIONS = args.num_directions
+assert NUM_DIRECTIONS in [1, 2]
 BIDIRECTIONAL = True if NUM_DIRECTIONS == 2 else False
 ENCODER_NUM_LAYERS, DECODER_NUM_LAYERS = args.encoder_num_layers, args.decoder_num_layers
 # Make sure encoder doesn't have lesser layers than decoder
@@ -71,7 +73,9 @@ def main():
         generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'train', SOURCE_VOCAB, \
                             TARGET_VOCAB, BATCH_SIZE, MAX_LEN_SOURCE, MAX_LEN_TARGET, None, None, args.force)
 
-     # Print all global variables defined above (and updated vocabulary sizes / max sentence lengths)
+    # Print all global variables defined above (and updated vocabulary sizes / max sentence lengths)
+    args.source_vocab, args.target_vocab = SOURCE_VOCAB, TARGET_VOCAB
+    args.max_len_source, args.max_len_target = MAX_LEN_SOURCE, MAX_LEN_TARGET
     global_vars = globals().copy()
     print_config(global_vars)
 
@@ -102,7 +106,6 @@ def main():
             fc_hidden_size=DECODER_HID_SIZE,
             attn=None,
             dropout=DECODER_DROPOUT)
-
     logging.info('Done.')
 
     # Define criteria and optimizer
@@ -114,12 +117,21 @@ def main():
     train_loss_history, train_bleu_history = [], []
     val_loss_history, val_bleu_history = [], []
 
-    # Load model state dicts if required
-    if CHECKPOINT_FILE:
+    # Load model state dicts / models if required
+    if CHECKPOINT_FILE: # First check for state dicts
         encoder, decoder, optimizer, train_loss_history, val_loss_history, \
         train_bleu_history, val_bleu_history, epoch_trained = \
-            load_checkpoint(encoder, decoder, optimizer, CHECKPOINT_FILE, PROJECT_DIR, CHECKPOINTS_DIR, DEVICE)
-        start_epoch = epoch_trained # Start from (epoch_trained+1) if checkpoint loaded
+            load_checkpoint(encoder, decoder, optimizer, CHECKPOINT_FILE, \
+                            PROJECT_DIR, CHECKPOINTS_DIR, DEVICE)
+    elif ENCODER_MODEL_CKPT or DECODER_MODEL_CKPT: # Otherwise check for entire model
+        if ENCODER_MODEL_CKPT:
+            encoder, epoch_trained_enc = load_model(PROJECT_DIR, CHECKPOINTS_DIR, ENCODER_MODEL_CKPT)
+        if DECODER_MODEL_CKPT:
+            decoder, epoch_trained_dec = load_model(PROJECT_DIR, CHECKPOINTS_DIR, DECODER_MODEL_CKPT)
+            assert epoch_trained_dec == epoch_trained_enc, \
+                'Mismatch in epochs trained for encoder (={}) and decoder (={}).'\
+                .format(epoch_trained_enc, epoch_trained_dec)
+    start_epoch = epoch_trained # Start from (epoch_trained+1) if checkpoint loaded
 
     # Check if model is to be parallelized
     if TOTAL_GPUs > 1 and (PARALLEL or NGPU):
@@ -169,11 +181,11 @@ def main():
             if early_stopping.is_better(val_loss):
                 logging.info('Saving current best model checkpoint...')
                 save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                            train_bleu_history, val_bleu_history, epoch, SOURCE_DATASET, TARGET_DATASET, \
-                            PROJECT_DIR, CHECKPOINTS_DIR, PARALLEL or NGPU)
+                                train_bleu_history, val_bleu_history, epoch, args, \
+                                PROJECT_DIR, CHECKPOINTS_DIR, PARALLEL or NGPU)
                 logging.info('Done.')
                 logging.info('Removing previous best model checkpoint...')
-                remove_checkpoint(SOURCE_DATASET, TARGET_DATASET, PROJECT_DIR, CHECKPOINTS_DIR, best_epoch)
+                remove_checkpoint(args, PROJECT_DIR, CHECKPOINTS_DIR, best_epoch)
                 logging.info('Done.')
                 best_epoch = epoch
 
@@ -190,12 +202,10 @@ def main():
     logging.info('Dumping model and results...')
     print_config(global_vars) # Print all global variables before saving checkpointing
     save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                    train_bleu_history, val_bleu_history, stop_epoch, SOURCE_DATASET, \
-                    TARGET_DATASET, PROJECT_DIR, CHECKPOINTS_DIR, PARALLEL or NGPU)
-    save_model(encoder, 'encoder', stop_epoch, SOURCE_DATASET, TARGET_DATASET, \
-               PROJECT_DIR, CHECKPOINTS_DIR)
-    save_model(decoder, 'decoder', stop_epoch, SOURCE_DATASET, TARGET_DATASET, \
-               PROJECT_DIR, CHECKPOINTS_DIR)
+                    train_bleu_history, val_bleu_history, stop_epoch, args, \
+                    PROJECT_DIR, CHECKPOINTS_DIR, PARALLEL or NGPU)
+    save_model(encoder, 'encoder', stop_epoch, args, PROJECT_DIR, CHECKPOINTS_DIR)
+    save_model(decoder, 'decoder', stop_epoch, args, PROJECT_DIR, CHECKPOINTS_DIR)
     logging.info('Done.')
 
     if len(train_loss_history) and len(val_loss_history):

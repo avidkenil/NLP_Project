@@ -107,7 +107,7 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
         loss_train = loss.item() * len(source) / len(dataloader.dataset)
         loss_hist.append(loss_train)
 
-        if (batch_idx+1) % (len(dataloader.dataset)//(25*source.shape[0])) == 0:
+        if (batch_idx+1) % (len(dataloader.dataset)//(50*source.shape[0])) == 0:
             logging.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, (batch_idx+1) * source.shape[0], len(dataloader.dataset),
                 100. * (batch_idx+1) / len(dataloader), loss.item()))
@@ -190,16 +190,14 @@ def load_object(filepath):
     return object
 
 def clean_paired_files(path1, path2, path_out1, path_out2):
-    ixs_to_drop = set()
     data1 = load_txt(path1)
     data2 = load_txt(path2)
 
-    final_data1 = []
-    final_data2 = []
-    for ele1, ele2 in zip(data1, data2):
-        if ele1.strip() and ele2.strip():
-            final_data1.append(ele1)
-            final_data2.append(ele2)
+    final_data1, final_data2 = [], []
+    for row1, row2 in zip(data1, data2):
+        if row1.strip() and row2.strip():
+            final_data1.append(row1)
+            final_data2.append(row2)
 
     dump_txt_data(final_data1, path_out1)
     dump_txt_data(final_data2, path_out2)
@@ -232,8 +230,8 @@ def dump_ind_data(obj, path):
             fout.write(s)
 
 def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                    train_bleu_history, val_bleu_history, epoch, source_dataset, \
-                    target_dataset, project_dir, checkpoints_dir, is_parallel=False):
+                    train_bleu_history, val_bleu_history, epoch, args, project_dir,
+                    checkpoints_dir, is_parallel=False):
 
     state_dict = {
         'encoder_state_dict': encoder.module.state_dict() if is_parallel else encoder.state_dict(),
@@ -246,19 +244,35 @@ def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_hi
         'val_bleu_history': val_bleu_history
     }
 
-    source_dataset = os.path.splitext(source_dataset)[0]
-    target_dataset = os.path.splitext(target_dataset)[0]
+    source_dataset = os.path.splitext(args.source_dataset)[0]
+    target_dataset = os.path.splitext(args.target_dataset)[0]
 
-    state_dict_name = 'state_dict_{}_{}_epoch{}.pkl'.format(source_dataset, target_dataset, epoch)
+    params = [source_dataset, target_dataset, args.source_vocab, args.target_vocab, \
+              args.max_len_source, args.max_len_target, args.encoder, args.num_directions, \
+              args.encoder_num_layers, args.decoder_num_layers, args.encoder_emb_size, \
+              args.decoder_emb_size, args.encoder_hid_size, args.encoder_dropout, \
+              args.decoder_dropout, args.decoder_hid_size]
+
+    state_dict_name = 'state_dict' + '_{}'*len(params) + '_epoch{}.pkl'
+    state_dict_name = state_dict_name.format(*params, epoch)
     state_dict_path = os.path.join(project_dir, checkpoints_dir, state_dict_name)
     logging.info('Saving checkpoint "{}"...'.format(state_dict_path))
     torch.save(state_dict, state_dict_path)
     logging.info('Done.')
 
-def remove_checkpoint(dataset, project_dir, checkpoints_dir, epoch):
+def remove_checkpoint(args, project_dir, checkpoints_dir, epoch):
     source_dataset = os.path.splitext(source_dataset)[0]
     target_dataset = os.path.splitext(target_dataset)[0]
-    state_dict_name = 'state_dict_{}_{}_epoch{}.pkl'.format(source_dataset, target_dataset, epoch)
+
+    params = [source_dataset, target_dataset, args.source_vocab, args.target_vocab, \
+              args.max_len_source, args.max_len_target, args.encoder, args.num_directions, \
+              args.encoder_num_layers, args.decoder_num_layers, args.encoder_emb_size, \
+              args.decoder_emb_size, args.encoder_hid_size, args.encoder_dropout, \
+              args.decoder_dropout, args.decoder_hid_size]
+
+
+    state_dict_name = 'state_dict' + '_{}'*len(params) + '_epoch{}.pkl'
+    state_dict_name = state_dict_name.format(*params, epoch)
     state_dict_path = os.path.join(project_dir, checkpoints_dir, state_dict_name)
     logging.info('Removing checkpoint "{}"...'.format(state_dict_path))
     if os.path.exists(state_dict_path):
@@ -303,15 +317,18 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
     return encoder, decoder, optimizer, train_loss_history, val_loss_history, \
             train_bleu_history, val_bleu_history, epoch_trained
 
-def save_model(model, model_name, epoch, source_dataset, target_dataset, \
-               project_dir, checkpoints_dir):
+def save_model(model, model_name, epoch, args, project_dir, checkpoints_dir):
+    params = [source_dataset, target_dataset, args.source_vocab, args.target_vocab, \
+              args.max_len_source, args.max_len_target, args.encoder, args.num_directions, \
+              args.encoder_num_layers, args.decoder_num_layers, args.encoder_emb_size, \
+              args.decoder_emb_size, args.encoder_hid_size, args.encoder_dropout, \
+              args.decoder_dropout, args.decoder_hid_size]
 
-    model = model.to('cpu')
-
-    checkpoint_name = '{}_{}_{}_epoch{}.pkl'.format(model_name, source_dataset, target_dataset, epoch)
+    checkpoint_name = model_name + '_{}'*len(params) + '_epoch{}.pt'
+    checkpoint_name = checkpoint_name.format(*params, epoch)
     checkpoint_path = os.path.join(project_dir, checkpoints_dir, checkpoint_name)
     logging.info('Saving checkpoint "{}"...'.format(checkpoint_path))
-    torch.save(model, checkpoint_path)
+    torch.save(model.to('cpu'), checkpoint_path)
     logging.info('Done.')
 
 def load_model(project_dir, checkpoints_dir, checkpoint_file):
@@ -320,10 +337,14 @@ def load_model(project_dir, checkpoints_dir, checkpoint_file):
         logging.info('Saving checkpoint "{}"...'.format(checkpoint_path))
         model = torch.load(checkpoint_path)
         logging.info('Done.')
+
+        # Extract last trained epoch from checkpoint file
+        epoch_trained = int(os.path.splitext(checkpoint_file)[0].split('_epoch')[-1])
+
     else:
         raise FileNotFoundError('No checkpoint found at "{}"!'.format(checkpoint_path))
 
-    return model
+    return model, epoch_trained
 
 
 class EarlyStopping(object):
