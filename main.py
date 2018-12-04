@@ -126,12 +126,12 @@ def main():
                             PROJECT_DIR, CHECKPOINTS_DIR, DEVICE)
     elif ENCODER_MODEL_CKPT or DECODER_MODEL_CKPT: # Otherwise check for entire model
         if ENCODER_MODEL_CKPT:
-            encoder, epoch_trained_enc = load_model(PROJECT_DIR, CHECKPOINTS_DIR, ENCODER_MODEL_CKPT)
+            encoder, epoch_trained = load_model(PROJECT_DIR, CHECKPOINTS_DIR, ENCODER_MODEL_CKPT)
         if DECODER_MODEL_CKPT:
             decoder, epoch_trained_dec = load_model(PROJECT_DIR, CHECKPOINTS_DIR, DECODER_MODEL_CKPT)
-            assert epoch_trained_dec == epoch_trained_enc, \
+            assert epoch_trained == epoch_trained_dec, \
                 'Mismatch in epochs trained for encoder (={}) and decoder (={}).'\
-                .format(epoch_trained_enc, epoch_trained_dec)
+                .format(epoch_trained, epoch_trained_dec)
     start_epoch = epoch_trained # Start from (epoch_trained+1) if checkpoint loaded
 
     # Check if model is to be parallelized

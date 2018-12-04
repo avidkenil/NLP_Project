@@ -5,6 +5,7 @@ import logging
 import time
 import sys
 import pickle
+from types import ModuleType
 from pprint import pformat
 
 import torch
@@ -75,7 +76,7 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
 
         # # init the decoder outputs with zeros and then fill them up with the values
         # decoder_outputs = torch.zeros(source.size(0), max_len_target, decoder.vocab_size).to(device)
-        encoder_output, encoder_hidden = encoder(source,source_lens)
+        encoder_output, encoder_hidden = encoder(source, source_lens)
         # doing complete teacher forcing first and then will add the probability based teacher forcing
         if decoder.num_layers == 1:
             if encoder.num_directions == 1:
@@ -146,7 +147,8 @@ def test(encoder, decoder, dataloader, criterion, device):
     return loss_test, torch.cat(output_hist, dim=0), torch.cat(y_hist, dim=0)
 
 def print_config(vars_dict):
-    vars_dict = {key: value for key, value in vars_dict.items() if key == key.upper()}
+    vars_dict = {key: value for key, value in vars_dict.items() if key == key.upper() \
+                 and not isinstance(value, ModuleType)}
     logging.info(pformat(vars_dict))
 
 def save_plot(project_dir, plots_dir, fig, filename):
