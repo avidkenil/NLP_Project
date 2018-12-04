@@ -118,6 +118,7 @@ def main():
     val_loss_history, val_bleu_history = [], []
 
     # Load model state dicts / models if required
+    epoch_trained = 0
     if CHECKPOINT_FILE: # First check for state dicts
         encoder, decoder, optimizer, train_loss_history, val_loss_history, \
         train_bleu_history, val_bleu_history, epoch_trained = \
