@@ -65,15 +65,6 @@ def masked_cross_entropy(logits, target, length, device):
     loss = losses.sum() / length.float().sum()
     return loss
 
-
-def repackage_hidden(h):
-    """Wraps hidden states in new Tensors, to detach them from their history."""
-    if isinstance(h, torch.Tensor):
-        return h.detach()
-    else:
-        return tuple(repackage_hidden(v) for v in h)
-
-
 def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_target, clip_param, device):
     loss_hist = []
     for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
@@ -238,7 +229,7 @@ def dump_ind_data(obj, path):
             fout.write(s)
 
 def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                    train_accuracy_history, val_accuracy_history, epoch, source_dataset, \
+                    train_bleu_history, val_bleu_history, epoch, source_dataset, \
                     target_dataset, project_dir, checkpoints_dir, is_parallel=False):
 
     state_dict = {
@@ -248,8 +239,8 @@ def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_hi
         'epoch': epoch,
         'train_loss_history': train_loss_history,
         'val_loss_history': val_loss_history,
-        'train_accuracy_history': train_accuracy_history,
-        'val_accuracy_history': val_accuracy_history
+        'train_bleu_history': train_bleu_history,
+        'val_bleu_history': val_bleu_history
     }
 
     source_dataset = os.path.splitext(source_dataset)[0]
@@ -275,7 +266,7 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
     # Note: Input model & optimizer should be pre-defined. This routine only updates their states.
 
     train_loss_history, val_loss_history = [], []
-    train_accuracy_history, val_accuracy_history = [], []
+    train_bleu_history, val_bleu_history = [], []
     epoch_trained = 0
 
     state_dict_path = os.path.join(project_dir, checkpoints_dir, checkpoint_file)
@@ -293,8 +284,8 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
         optimizer.load_state_dict(state_dict['optimizer'])
         train_loss_history = state_dict['train_loss_history']
         val_loss_history = state_dict['val_loss_history']
-        train_accuracy_history = state_dict['train_accuracy_history']
-        val_accuracy_history = state_dict['val_accuracy_history']
+        train_bleu_history = state_dict['train_bleu_history']
+        val_bleu_history = state_dict['val_bleu_history']
 
         for state in optimizer.state.values():
             for k, v in state.items():
@@ -307,7 +298,29 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
         raise FileNotFoundError('No checkpoint found at "{}"!'.format(state_dict_path))
 
     return encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-            train_accuracy_history, val_accuracy_history, epoch_trained
+            train_bleu_history, val_bleu_history, epoch_trained
+
+def save_model(model, model_name, epoch, source_dataset, target_dataset, \
+               project_dir, checkpoints_dir):
+
+    model = model.to('cpu')
+
+    checkpoint_name = '{}_{}_{}_epoch{}.pkl'.format(model_name, source_dataset, target_dataset, epoch)
+    checkpoint_path = os.path.join(project_dir, checkpoints_dir, checkpoint_name)
+    logging.info('Saving checkpoint "{}"...'.format(checkpoint_path))
+    torch.save(model, checkpoint_path)
+    logging.info('Done.')
+
+def load_model(project_dir, checkpoints_dir, checkpoint_file):
+    checkpoint_path = os.path.join(project_dir, checkpoints_dir, checkpoint_file)
+    if os.path.exists(checkpoint_path):
+        logging.info('Saving checkpoint "{}"...'.format(checkpoint_path))
+        model = torch.load(checkpoint_path)
+        logging.info('Done.')
+    else:
+        raise FileNotFoundError('No checkpoint found at "{}"!'.format(checkpoint_path))
+
+    return model
 
 
 class EarlyStopping(object):

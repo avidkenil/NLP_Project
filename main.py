@@ -191,6 +191,10 @@ def main():
     save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
                     train_bleu_history, val_bleu_history, stop_epoch, SOURCE_DATASET, \
                     TARGET_DATASET, PROJECT_DIR, CHECKPOINTS_DIR, PARALLEL or NGPU)
+    save_model(encoder, 'encoder', stop_epoch, SOURCE_DATASET, TARGET_DATASET, \
+               PROJECT_DIR, CHECKPOINTS_DIR)
+    save_model(decoder, 'decoder', stop_epoch, SOURCE_DATASET, TARGET_DATASET, \
+               PROJECT_DIR, CHECKPOINTS_DIR)
     logging.info('Done.')
 
     if len(train_loss_history) and len(val_loss_history):
