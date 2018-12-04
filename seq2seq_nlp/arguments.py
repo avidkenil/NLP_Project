@@ -36,6 +36,8 @@ def get_args():
     parser.add_argument('--lr', metavar='LR', dest='lr', help='learning rate', required=False, \
                         type=float, default=1e-4)
     parser.add_argument('--force', action='store_true', help='overwrites all existing dumped data sets')
+    parser.add_argument('--clip-param', metavar='CLIP_PARAM', dest='clip_param', help='clip parameter value for exploding gradients', required=False, \
+                        type=float, default=5)
     args = parser.parse_args()
 
     return args

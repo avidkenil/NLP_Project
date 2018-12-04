@@ -8,6 +8,7 @@ import pickle
 from pprint import pformat
 
 import torch
+from torch import nn
 from torch.nn import functional
 from torch.autograd import Variable
 
@@ -73,7 +74,7 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_len_target):
+def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_len_target,clip_param):
     loss_hist = []
     for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
         source, source_lens, target, target_lens  = source.to(device), source_lens.to(device), target.to(device), target_lens.to(device)
@@ -101,7 +102,7 @@ def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_
         loss = 0.
 
         max_batch_target_len = target_lens.data.max().item()
-        print(max_batch_target_len, source_lens.data.max().item())
+        #print(max_batch_target_len, source_lens.data.max().item())
         for step in range(max_batch_target_len):
 
             decoder_output_step, decoder_hidden_step, attn_weights_step = decoder(input_seq,decoder_hidden_step,source_lens,encoder_output)
@@ -111,26 +112,21 @@ def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_
             #decoder_hidden_step = repackage_hidden(decoder_hidden_step)
 
             # check if need to repackage hidden here or after the entire batch
-        """
-        step = 0
-        decoder_output_step, decoder_hidden_step, attn_weights_step = decoder(input_seq,decoder_hidden_step,source_lens,encoder_output)
-        decoder_outputs[:,step,:] = decoder_output_step
-        input_seq = target[:,step] #change this line to change what to give as the next input to the decoder
-        loss += criterion(decoder_output_step,input_seq)
-        decoder_hidden_step = repackage_hidden(decoder_hidden_step)
-        """
-
-        # applying masked cross entropy just for the outputs till the target lens for individual sentence in a batch
+        
         # loss = masked_cross_entropy(decoder_outputs[:,:max_batch_target_len,:].contiguous(),target,target_lens,device)
-        # loss = criterion(decoder_output, y)
         optimizer.zero_grad()
         loss.backward()
+        nn.utils.clip_grad_norm_(encoder.parameters(),clip_param)
+        nn.utils.clip_grad_norm_(decoder.parameters(),clip_param)
         optimizer.step()
         # Accurately compute loss, because of different batch size
         loss_train = loss.item() * len(source) / len(dataloader.dataset)
         loss_hist.append(loss_train)
+        #print(loss.item())
+        
 
-        if (batch_idx+1) % (len(dataloader.dataset)//(1000*source.shape[0])) == 0:
+
+        if (batch_idx+1) % (len(dataloader.dataset)//(25*source.shape[0])) == 0:
             logging.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, (batch_idx+1) * source.shape[0], len(dataloader.dataset),
                 100. * (batch_idx+1) / len(dataloader), loss.item()))

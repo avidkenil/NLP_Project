@@ -31,6 +31,7 @@ SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
 SOURCE_VOCAB, TARGET_VOCAB = args.source_vocab, args.target_vocab
 MAX_LEN_SOURCE = args.max_len_source
 MAX_LEN_TARGET = args.max_len_target
+CLIP_PARAM = args.clip_param
 
 BATCH_SIZE = args.batch_size    # input batch size for training
 N_EPOCHS = args.epochs          # number of epochs to train
@@ -132,7 +133,8 @@ def main():
                 optimizer=optimizer,
                 device=DEVICE,
                 epoch=epoch,
-                max_len_target=max_len_target
+                max_len_target=max_len_target,
+                clip_param=CLIP_PARAM
             )
 
             val_loss, val_pred, val_true = test(
