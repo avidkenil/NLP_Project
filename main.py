@@ -25,10 +25,11 @@ args = get_args()
 
 # Globals
 PROJECT_DIR = args.project_dir
+SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
 DATA_DIR,  PLOTS_DIR, LOGGING_DIR = args.data_dir, 'plots', 'logs'
+DATA_DIR = os.path.join(DATA_DIR, '{}-{}'.format(SOURCE_DATASET, TARGET_DATASET))
 CHECKPOINTS_DIR, CHECKPOINT_FILE = args.checkpoints_dir, args.load_ckpt
 ENCODER_MODEL_CKPT, DECODER_MODEL_CKPT = args.load_enc_ckpt, args.load_dec_ckpt
-SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
 SOURCE_VOCAB, TARGET_VOCAB = args.source_vocab, args.target_vocab
 MAX_LEN_SOURCE, MAX_LEN_TARGET = args.max_len_source, args.max_len_target
 UNK_THRESHOLD = args.unk_threshold
@@ -43,7 +44,8 @@ ENCODER_NUM_LAYERS, DECODER_NUM_LAYERS = args.encoder_num_layers, args.decoder_n
 # Make sure encoder doesn't have lesser layers than decoder
 assert ENCODER_NUM_LAYERS >= DECODER_NUM_LAYERS
 ENCODER_EMB_SIZE, DECODER_EMB_SIZE = args.encoder_emb_size, args.decoder_emb_size
-ENCODER_HID_SIZE, DECODER_HID_SIZE = args.encoder_hid_size, args.decoder_hid_size
+ENCODER_HID_SIZE = args.encoder_hid_size
+args.decoder_hid_size = DECODER_HID_SIZE = ENCODER_HID_SIZE*NUM_DIRECTIONS
 ENCODER_DROPOUT, DECODER_DROPOUT = args.encoder_dropout, args.decoder_dropout
 
 BATCH_SIZE = args.batch_size    # input batch size for training

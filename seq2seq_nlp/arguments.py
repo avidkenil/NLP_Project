@@ -6,7 +6,7 @@ def get_args():
     parser.add_argument('--project-dir', metavar='PROJECT_DIR', dest='project_dir', \
                         help='path to project directory', required=False, default='.')
     parser.add_argument('--data-dir', metavar='DATA_DIR', dest='data_dir', \
-                        help='path to data directory', required=False, default='data/vi-en')
+                        help='path to data directory', required=False, default='data')
     parser.add_argument('--source-dataset', metavar='SOURCE_DATASET', dest='source_dataset', \
                         help='name of source dataset file in data directory', required=False, default='vi')
     parser.add_argument('--target-dataset', metavar='TARGET_DATASET', dest='target_dataset', \
@@ -55,8 +55,6 @@ def get_args():
                         'of decoder, default=256', required=False, type=int, default=256)
     parser.add_argument('--encoder-hid-size', metavar='ENCODER_HID_SIZE', dest='encoder_hid_size', help='hidden size '\
                         'of encoder, default=256', required=False, type=int, default=256)
-    parser.add_argument('--decoder-hid-size', metavar='DECODER_HID_SIZE', dest='decoder_hid_size', help='hidden size '\
-                        'of decoder, default=512', required=False, type=int, default=512)
     parser.add_argument('--encoder-dropout', metavar='ENCODER_DROPOUT', dest='encoder_dropout', \
                         help='dropout rate in encoder, default=0.', required=False, type=float, default=0.)
     parser.add_argument('--decoder-dropout', metavar='DECODER_DROPOUT', dest='decoder_dropout', \

@@ -41,7 +41,6 @@ usage: main.py [-h] [--project-dir PROJECT_DIR] [--data-dir DATA_DIR]
                [--encoder-emb-size ENCODER_EMB_SIZE]
                [--decoder-emb-size DECODER_EMB_SIZE]
                [--encoder-hid-size ENCODER_HID_SIZE]
-               [--decoder-hid-size DECODER_HID_SIZE]
                [--encoder-dropout ENCODER_DROPOUT]
                [--decoder-dropout DECODER_DROPOUT] [--clip-param CLIP_PARAM]
                [--force]
@@ -51,7 +50,7 @@ optional arguments:
   --project-dir PROJECT_DIR                   path to project directory
   --source-dataset SOURCE_DATASET             name of source dataset file in data directory, default='vi'
   --target-dataset TARGET_DATASET             name of target dataset file in data directory, default='en'
-  --data-dir DATA_DIR                         path to data directory, default="data/vi-en"
+  --data-dir DATA_DIR                         path to data directory, default="data"
   --checkpoints-dir CHECKPOINTS_DIR           path to checkpoints directory
   --load-ckpt LOAD_CHECKPOINT                 name of checkpoint file to load
     --load-enc-ckpt LOAD_ENC_CKPT             name of encoder file to load
@@ -76,7 +75,6 @@ optional arguments:
   --encoder-emb-size ENCODER_EMB_SIZE         embedding size of encoder, default=256
   --decoder-emb-size DECODER_EMB_SIZE         embedding size of decoder, default=256
   --encoder-hid-size ENCODER_HID_SIZE         hidden size of encoder, default=256
-  --decoder-hid-size DECODER_HID_SIZE         hidden size of decoder, default=512
   --encoder-dropout ENCODER_DROPOUT           dropout rate in encoder, default=0.
   --decoder-dropout DECODER_DROPOUT           dropout rate in decoder FC layer, default=0.
   --clip-param CLIP_PARAM                     clip parameter value for exploding gradients
