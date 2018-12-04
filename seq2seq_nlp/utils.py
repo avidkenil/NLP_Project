@@ -77,21 +77,29 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
         # decoder_outputs = torch.zeros(source.size(0), max_len_target, decoder.vocab_size).to(device)
         encoder_output, encoder_hidden = encoder(source,source_lens)
         # doing complete teacher forcing first and then will add the probability based teacher forcing
-        decoder_hidden_step = encoder_hidden if decoder.num_layers != 1 else encoder_hidden[-1]
-        if encoder.num_layers == 1:
-            decoder_hidden_step = decoder_hidden_step.unsqueeze(0)
+        if decoder.num_layers == 1:
+            if encoder.num_directions == 1:
+                decoder_hidden_step = encoder_hidden[-2:]
+            else:
+                decoder_hidden_step = encoder_hidden[-1].unsqueeze(0)
+        else:
+            decoder_hidden_step = encoder_hidden
+
         input_seq = target[:,0]
 
         loss = 0.
 
         max_batch_target_len = target_lens.data.max().item()
         for step in range(max_batch_target_len):
-            decoder_output_step, decoder_hidden_step, attn_weights_step = decoder(input_seq, decoder_hidden_step, \
-                                                                                  source_lens, encoder_output)
+            decoder_output_step, decoder_hidden_step, attn_weights_step = \
+                decoder(input_seq, decoder_hidden_step, source_lens,
+                        encoder_output)
             # decoder_outputs[:,step,:] = decoder_output_step
             input_seq = target[:,step] # change this line to change what to give as the next input to the decoder
             loss += criterion(decoder_output_step, input_seq)
         loss /= target_lens.data.sum().item() # Take per-element average
+        #decoder.decode(decoder, target, target_lens, decoder_hidden_step,
+                       #criterion=None)
 
         # loss = masked_cross_entropy(decoder_outputs[:,:max_batch_target_len,:].contiguous(),target,target_lens,device)
         optimizer.zero_grad()
