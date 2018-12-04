@@ -144,11 +144,14 @@ def print_config(vars_dict):
 def save_plot(project_dir, plots_dir, fig, filename):
     fig.savefig(os.path.join(project_dir, plots_dir, filename))
 
-def make_dirs(parent_dir, directories_to_create):
-    for directory in directories_to_create:
-        directory_path = os.path.join(parent_dir, directory)
-        if not os.path.exists(directory_path):
-            os.makedirs(directory_path)
+def make_dirs(parent_dir, child_dirs=None):
+    if not os.path.exists(parent_dir):
+        os.makedirs(parent_dir)
+    if child_dirs:
+        for directory in child_dirs:
+            directory_path = os.path.join(parent_dir, directory)
+            if not os.path.exists(directory_path):
+                os.makedirs(directory_path)
 
 def setup_logging(project_dir, logging_dir):
     log_path = os.path.join(project_dir, logging_dir)
