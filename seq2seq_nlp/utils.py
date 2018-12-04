@@ -257,10 +257,10 @@ def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_hi
     source_dataset = os.path.splitext(args.source_dataset)[0]
     target_dataset = os.path.splitext(args.target_dataset)[0]
     params = [source_dataset, target_dataset, args.source_vocab, args.target_vocab, \
-              args.max_len_source, args.max_len_target, args.encoder, args.num_directions, \
-              args.encoder_num_layers, args.decoder_num_layers, args.encoder_emb_size, \
-              args.decoder_emb_size, args.encoder_hid_size, args.encoder_dropout, \
-              args.decoder_dropout, args.decoder_hid_size]
+              args.max_len_source, args.max_len_target, args.encoder_type, \
+              args.num_directions, args.encoder_num_layers, args.decoder_num_layers, \
+              args.encoder_emb_size, args.decoder_emb_size, args.encoder_hid_size, \
+              args.encoder_dropout, args.decoder_dropout, args.decoder_hid_size]
 
     state_dict_name = 'state_dict' + '_{}'*len(params) + '_epoch{}.pkl'
     state_dict_name = state_dict_name.format(*params, epoch)
@@ -273,10 +273,10 @@ def remove_checkpoint(args, project_dir, checkpoints_dir, epoch):
     source_dataset = os.path.splitext(args.source_dataset)[0]
     target_dataset = os.path.splitext(args.target_dataset)[0]
     params = [source_dataset, target_dataset, args.source_vocab, args.target_vocab, \
-              args.max_len_source, args.max_len_target, args.encoder, args.num_directions, \
-              args.encoder_num_layers, args.decoder_num_layers, args.encoder_emb_size, \
-              args.decoder_emb_size, args.encoder_hid_size, args.encoder_dropout, \
-              args.decoder_dropout, args.decoder_hid_size]
+              args.max_len_source, args.max_len_target, args.encoder_type, \
+              args.num_directions, args.encoder_num_layers, args.decoder_num_layers, \
+              args.encoder_emb_size, args.decoder_emb_size, args.encoder_hid_size, \
+              args.encoder_dropout, args.decoder_dropout, args.decoder_hid_size]
 
 
     state_dict_name = 'state_dict' + '_{}'*len(params) + '_epoch{}.pkl'
@@ -317,7 +317,7 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
                 if isinstance(v, torch.Tensor):
                     state[k] = v.to(device)
 
-        logging.info('Successfully loaded checkpoint "{}".'.format(state_dict_path))
+        logging.info('Successfully loaded checkpoint.')
 
     else:
         raise FileNotFoundError('No checkpoint found at "{}"!'.format(state_dict_path))
@@ -329,10 +329,10 @@ def save_model(model, model_name, epoch, args, project_dir, checkpoints_dir):
     source_dataset = os.path.splitext(args.source_dataset)[0]
     target_dataset = os.path.splitext(args.target_dataset)[0]
     params = [source_dataset, target_dataset, args.source_vocab, args.target_vocab, \
-              args.max_len_source, args.max_len_target, args.encoder, args.num_directions, \
-              args.encoder_num_layers, args.decoder_num_layers, args.encoder_emb_size, \
-              args.decoder_emb_size, args.encoder_hid_size, args.encoder_dropout, \
-              args.decoder_dropout, args.decoder_hid_size]
+              args.max_len_source, args.max_len_target, args.encoder_type, \
+              args.num_directions, args.encoder_num_layers, args.decoder_num_layers, \
+              args.encoder_emb_size, args.decoder_emb_size, args.encoder_hid_size, \
+              args.encoder_dropout, args.decoder_dropout, args.decoder_hid_size]
 
     checkpoint_name = model_name + '_{}'*len(params) + '_epoch{}.pt'
     checkpoint_name = checkpoint_name.format(*params, epoch)
@@ -344,7 +344,7 @@ def save_model(model, model_name, epoch, args, project_dir, checkpoints_dir):
 def load_model(project_dir, checkpoints_dir, checkpoint_file):
     checkpoint_path = os.path.join(project_dir, checkpoints_dir, checkpoint_file)
     if os.path.exists(checkpoint_path):
-        logging.info('Saving checkpoint "{}"...'.format(checkpoint_path))
+        logging.info('Loading checkpoint "{}"...'.format(checkpoint_path))
         model = torch.load(checkpoint_path)
         logging.info('Done.')
 

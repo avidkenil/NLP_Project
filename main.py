@@ -31,10 +31,11 @@ ENCODER_MODEL_CKPT, DECODER_MODEL_CKPT = args.load_enc_ckpt, args.load_dec_ckpt
 SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
 SOURCE_VOCAB, TARGET_VOCAB = args.source_vocab, args.target_vocab
 MAX_LEN_SOURCE, MAX_LEN_TARGET = args.max_len_source, args.max_len_target
+UNK_THRESHOLD = args.unk_threshold
 CLIP_PARAM = args.clip_param
 
 # Model hyperparameters
-ENCODER = args.encoder          # Type of encoder
+ENCODER_TYPE = args.encoder_type        # Type of encoder
 NUM_DIRECTIONS = args.num_directions
 assert NUM_DIRECTIONS in [1, 2]
 BIDIRECTIONAL = True if NUM_DIRECTIONS == 2 else False
@@ -71,7 +72,8 @@ def main():
 
     train_loader, SOURCE_VOCAB, TARGET_VOCAB, MAX_LEN_SOURCE, MAX_LEN_TARGET, id2token, token2id = \
         generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'train', SOURCE_VOCAB, \
-                            TARGET_VOCAB, BATCH_SIZE, MAX_LEN_SOURCE, MAX_LEN_TARGET, None, None, args.force)
+                            TARGET_VOCAB, BATCH_SIZE, MAX_LEN_SOURCE, MAX_LEN_TARGET, UNK_THRESHOLD, None, \
+                            None, args.force)
 
     # Print all global variables defined above (and updated vocabulary sizes / max sentence lengths)
     args.source_vocab, args.target_vocab = SOURCE_VOCAB, TARGET_VOCAB
@@ -81,13 +83,13 @@ def main():
 
     val_loader = generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'dev', \
                                      SOURCE_VOCAB, TARGET_VOCAB, BATCH_SIZE, MAX_LEN_SOURCE, MAX_LEN_TARGET, \
-                                     id2token, token2id, args.force)
+                                     UNK_THRESHOLD, id2token, token2id, args.force)
 
     start_epoch = 0 # Initialize starting epoch number (used later if checkpoint loaded)
     stop_epoch = N_EPOCHS+start_epoch # Store epoch upto which model is trained (used in case of KeyboardInterrupt)
 
     logging.info('Creating models...')
-    encoder = RNNEncoder(kind=ENCODER,
+    encoder = RNNEncoder(kind=ENCODER_TYPE,
                 vocab_size=SOURCE_VOCAB,
                 embed_size=ENCODER_EMB_SIZE,
                 hidden_size=ENCODER_HID_SIZE,
