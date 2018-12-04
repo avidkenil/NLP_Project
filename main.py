@@ -106,7 +106,7 @@ def main():
 
     # Define criteria and optimizer
     # Ignore padding indexes
-    criterion_train = nn.CrossEntropyLoss(ignore_index=0)
+    criterion_train = nn.CrossEntropyLoss(reduction='sum', ignore_index=0)
     criterion_test = nn.CrossEntropyLoss(reduction='sum', ignore_index=0)
     optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=LR)
 
@@ -141,10 +141,10 @@ def main():
                 criterion=criterion_train,
                 dataloader=train_loader,
                 optimizer=optimizer,
-                device=DEVICE,
                 epoch=epoch,
                 max_len_target=MAX_LEN_TARGET,
-                clip_param=CLIP_PARAM
+                clip_param=CLIP_PARAM,
+                device=DEVICE
             )
 
             val_loss, val_pred, val_true = test(

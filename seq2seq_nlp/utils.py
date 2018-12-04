@@ -60,7 +60,7 @@ def masked_cross_entropy(logits, target, length, device):
     # losses: (batch, max_len)
     losses = losses_flat.view(*target.size())
     # mask: (batch, max_len)
-    mask = sequence_mask(sequence_length=length, max_len=target.size(1),device=device)
+    mask = sequence_mask(sequence_length=length, max_len=target.size(1), device=device)
     losses = losses * mask.float()
     loss = losses.sum() / length.float().sum()
     return loss
@@ -74,57 +74,47 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def train(encoder, decoder, dataloader, criterion, optimizer, device, epoch,max_len_target,clip_param):
+def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_target, clip_param, device):
     loss_hist = []
     for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
-        source, source_lens, target, target_lens  = source.to(device), source_lens.to(device), target.to(device), target_lens.to(device)
+        source, source_lens  = source.to(device), source_lens.to(device)
+        target, target_lens = target.to(device), target_lens.to(device)
         encoder.train()
         decoder.train()
 
-        # init the decoder outputs with zeros and then fill them up with the values
-        # try:
-        #     decoder_outputs = torch.zeros(source.size(0),max_len_target,decoder.vocab_size).to(device)
-        # except Exception as e:
-        #     print(e)
-            # import gc
-            # for obj in gc.get_objects():
-            #     if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-            #         print(type(obj), obj.size())
-            # print(torch.cuda.max_memory_allocated())
-            # import pdb;pdb.set_trace()
+        # # init the decoder outputs with zeros and then fill them up with the values
+        # decoder_outputs = torch.zeros(source.size(0), max_len_target, decoder.vocab_size).to(device)
         encoder_output, encoder_hidden = encoder(source,source_lens)
         # doing complete teacher forcing first and then will add the probability based teacher forcing
         decoder_hidden_step = encoder_hidden if decoder.num_layers != 1 else encoder_hidden[-1]
-        if encoder.num_layers == 1 :
+        if encoder.num_layers == 1:
             decoder_hidden_step = decoder_hidden_step.unsqueeze(0)
         input_seq = target[:,0]
 
         loss = 0.
 
         max_batch_target_len = target_lens.data.max().item()
-        #print(max_batch_target_len, source_lens.data.max().item())
         for step in range(max_batch_target_len):
+            decoder_output_step, decoder_hidden_step, attn_weights_step = decoder(input_seq, decoder_hidden_step, \
+                                                                                  source_lens, encoder_output)
+            # decoder_outputs[:,step,:] = decoder_output_step
+            input_seq = target[:,step] # change this line to change what to give as the next input to the decoder
+            loss += criterion(decoder_output_step, input_seq)
+        loss /= target_lens.data.sum().item() # Take per-element average
 
-            decoder_output_step, decoder_hidden_step, attn_weights_step = decoder(input_seq,decoder_hidden_step,source_lens,encoder_output)
-            #decoder_outputs[:,step,:] = decoder_output_step
-            input_seq = target[:,step] #change this line to change what to give as the next input to the decoder
-            loss += criterion(decoder_output_step,input_seq)
-            #decoder_hidden_step = repackage_hidden(decoder_hidden_step)
-
-            # check if need to repackage hidden here or after the entire batch
-        
         # loss = masked_cross_entropy(decoder_outputs[:,:max_batch_target_len,:].contiguous(),target,target_lens,device)
         optimizer.zero_grad()
         loss.backward()
-        nn.utils.clip_grad_norm_(encoder.parameters(),clip_param)
-        nn.utils.clip_grad_norm_(decoder.parameters(),clip_param)
+
+        # Clip gradients
+        nn.utils.clip_grad_norm_(encoder.parameters(), clip_param)
+        nn.utils.clip_grad_norm_(decoder.parameters(), clip_param)
+
         optimizer.step()
+
         # Accurately compute loss, because of different batch size
         loss_train = loss.item() * len(source) / len(dataloader.dataset)
         loss_hist.append(loss_train)
-        #print(loss.item())
-        
-
 
         if (batch_idx+1) % (len(dataloader.dataset)//(25*source.shape[0])) == 0:
             logging.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
