@@ -43,7 +43,9 @@ def get_counts(project_dir, data_dir, dataset, vocab_size, is_source, force=Fals
         counts = Counter(all_tokens)
         logging.info('Saving counts')
         save_object(counts, counts_path)
-    return counts.most_common(vocab_size)
+    top_counts = counts.most_common(vocab_size)
+    top_counts = [(word, count) for word, count in top_counts if count >= 5]
+    return top_counts
 
 def get_vocab(project_dir, data_dir, dataset, id2token_path, token2id_path, \
               vocab_size=50000, is_source=True, force=False):
