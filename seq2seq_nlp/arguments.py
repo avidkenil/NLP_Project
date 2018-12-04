@@ -52,9 +52,9 @@ def get_args():
     parser.add_argument('--decoder-hid-size', metavar='DECODER_HID_SIZE', dest='decoder_hid_size', help='hidden size '\
                         'of decoder, default=512', required=False, type=int, default=512)
     parser.add_argument('--encoder-dropout', metavar='ENCODER_DROPOUT', dest='encoder_dropout', \
-                        help='dropout rate in encoder', required=False, type=float, default=0.5)
+                        help='dropout rate in encoder', required=False, type=float, default=0.)
     parser.add_argument('--decoder-dropout', metavar='DECODER_DROPOUT', dest='decoder_dropout', \
-                        help='dropout rate in decoder FC layer', required=False, type=float, default=0.5)
+                        help='dropout rate in decoder FC layer', required=False, type=float, default=0.)
     parser.add_argument('--clip-param', metavar='CLIP_PARAM', dest='clip_param', \
                         help='clip parameter value for exploding gradients', required=False, type=float, default=5.0)
     parser.add_argument('--force', action='store_true', help='overwrites all existing dumped data sets')

@@ -28,7 +28,6 @@ PROJECT_DIR = args.project_dir
 DATA_DIR,  PLOTS_DIR, LOGGING_DIR = args.data_dir, 'plots', 'logs'
 CHECKPOINTS_DIR, CHECKPOINT_FILE = args.checkpoints_dir, args.load_ckpt
 SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
-global SOURCE_VOCAB, TARGET_VOCAB, MAX_LEN_SOURCE, MAX_LEN_TARGET
 SOURCE_VOCAB, TARGET_VOCAB = args.source_vocab, args.target_vocab
 MAX_LEN_SOURCE, MAX_LEN_TARGET = args.max_len_source, args.max_len_target
 CLIP_PARAM = args.clip_param
@@ -66,16 +65,18 @@ def main():
     make_dirs(PROJECT_DIR, [CHECKPOINTS_DIR, PLOTS_DIR, LOGGING_DIR]) # Create all required directories if not present
     setup_logging(PROJECT_DIR, LOGGING_DIR) # Setup configuration for logging
 
+    global SOURCE_VOCAB, TARGET_VOCAB, MAX_LEN_SOURCE, MAX_LEN_TARGET
+
     train_loader, SOURCE_VOCAB, TARGET_VOCAB, MAX_LEN_SOURCE, MAX_LEN_TARGET, id2token, token2id = \
         generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'train', SOURCE_VOCAB, \
-                            TARGET_VOCAB, BATCH_SIZE, max_len_source, max_len_target, None, None, args.force)
+                            TARGET_VOCAB, BATCH_SIZE, MAX_LEN_SOURCE, MAX_LEN_TARGET, None, None, args.force)
 
      # Print all global variables defined above (and updated vocabulary sizes / max sentence lengths)
     global_vars = globals().copy()
     print_config(global_vars)
 
     val_loader = generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'dev', \
-                                     SOURCE_VOCAB, TARGET_VOCAB, BATCH_SIZE, max_len_source, max_len_target, \
+                                     SOURCE_VOCAB, TARGET_VOCAB, BATCH_SIZE, MAX_LEN_SOURCE, MAX_LEN_TARGET, \
                                      id2token, token2id, args.force)
 
     start_epoch = 0 # Initialize starting epoch number (used later if checkpoint loaded)
