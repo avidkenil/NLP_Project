@@ -17,7 +17,7 @@ def add_special_symbols(data):
     logging.info("Adding 'SOS' and 'EOS' symbols to target data")
     return [[SOS] + row + [EOS] for row in data]
 
-def get_counts(project_dir, data_dir, dataset, vocab_size, is_source, force=False):
+def get_counts(project_dir, data_dir, dataset, vocab_size, is_source, unk_threshold=5, force=False):
     logging.info(f'Getting counts for {dataset}')
     counts_path = os.path.join(project_dir, data_dir, f'counts.{dataset}.p')
     have_counts = os.path.isfile(counts_path)
@@ -44,16 +44,17 @@ def get_counts(project_dir, data_dir, dataset, vocab_size, is_source, force=Fals
         logging.info('Saving counts')
         save_object(counts, counts_path)
     top_counts = counts.most_common(vocab_size)
-    top_counts = [(word, count) for word, count in top_counts if count >= 5]
+    top_counts = [(word, count) for word, count in top_counts if count >= unk_threshold]
     return top_counts
 
 def get_vocab(project_dir, data_dir, dataset, id2token_path, token2id_path, \
-              vocab_size=50000, is_source=True, force=False):
+              vocab_size=50000, is_source=True, unk_threshold=5, force=False):
     have_vocab = os.path.isfile(id2token_path)
     logging.info(f'Building vocabulary for {dataset}')
     if force:
         logging.info('Saving vocabulary')
-        top_counts = get_counts(project_dir, data_dir, dataset, vocab_size, is_source, force)
+        top_counts = get_counts(project_dir, data_dir, dataset, vocab_size, \
+                                is_source, unk_threshold, force)
         vocabulary, counts = zip(*top_counts)
         if is_source:
             id2token = [PAD, UNK] + list(vocabulary)
@@ -71,7 +72,7 @@ def get_vocab(project_dir, data_dir, dataset, id2token_path, token2id_path, \
     return id2token, token2id
 
 def get_data_indices(project_dir, data_dir, kind, dataset, vocab_size, is_source, \
-                     id2token=None, token2id=None, force=False):
+                     unk_threshold=5, id2token=None, token2id=None, force=False):
     def transform(data, token2id):
         data_indices = [[token2id[tok] if tok in token2id else token2id[UNK] \
                          for tok in sentence] for sentence in data]
@@ -85,7 +86,7 @@ def get_data_indices(project_dir, data_dir, kind, dataset, vocab_size, is_source
         if force:
             data = load_raw_data(os.path.join(project_dir, data_dir, f'train.tok.clean.{dataset}'))
             id2token, token2id = get_vocab(project_dir, data_dir, dataset, id2token_path, \
-                                           token2id_path, vocab_size, is_source, force)
+                                           token2id_path, vocab_size, is_source, unk_threshold, force)
             data_ind = transform(data, token2id)
             logging.info('Saving the indices data')
             dump_ind_data(data_ind, data_ind_path)
@@ -109,7 +110,7 @@ def get_data_indices(project_dir, data_dir, kind, dataset, vocab_size, is_source
 
 def generate_dataloader(project_dir, data_dir, source_dataset, target_dataset, kind, \
                         source_vocab_size, target_vocab_size, batch_size, max_len_source, \
-                        max_len_target, id2token=None, token2id=None, force=False):
+                        max_len_target, unk_threshold=5, id2token=None, token2id=None, force=False):
     '''
     kind (str): possible values - 'train' or 'dev' or 'test'
     '''
@@ -137,12 +138,13 @@ def generate_dataloader(project_dir, data_dir, source_dataset, target_dataset, k
         if kind == 'train':
             data[key], id2token[key], token2id[key] = \
                 get_data_indices(project_dir, data_dir, kind, dataset, \
-                                 vocab_size, is_source, None, None, force)
+                                 vocab_size, is_source, unk_threshold, \
+                                 None, None, force)
         else:
             data[key], _, _ = \
                 get_data_indices(project_dir, data_dir, kind, dataset, \
-                                 vocab_size, is_source, id2token[key], \
-                                 token2id[key], force)
+                                 vocab_size, is_source, unk_threshold, \
+                                 id2token[key], token2id[key], force)
 
     logging.info('Creating Dataset')
     if(max_len_source == -1):
