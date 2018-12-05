@@ -149,7 +149,7 @@ def main():
     encoder = encoder.to(DEVICE)
     decoder = decoder.to(DEVICE)
 
-    early_stopping = EarlyStopping(mode='maximize', min_delta=0, patience=100)
+    early_stopping = EarlyStopping(mode='maximize', min_delta=0, patience=10)
     best_epoch = start_epoch+1
 
     for epoch in range(start_epoch+1, N_EPOCHS+start_epoch+1):
@@ -166,25 +166,24 @@ def main():
                 device=DEVICE
             )
 
-            val_loss, bleu_val = test(
-                encoder = encoder,
-                decoder = decoder, 
-                dataloader = val_loader,
-                criterion = criterion_test, 
-                epoch = epoch, 
-                max_len_target = MAX_LEN_TARGET, 
-                device = DEVICE,
-                id2token = id2token['target'],
-                token2id = token2id['target']
+            val_loss, val_blue = test(
+                encoder=encoder,
+                decoder=decoder,
+                dataloader=val_loader,
+                criterion=criterion_test,
+                epoch=epoch,
+                max_len_target=MAX_LEN_TARGET,
+                id2token=id2token['target'],
+                token2id=token2id['target'],
+                device=DEVICE
             )
 
             train_loss_history.extend(train_losses)
             val_loss_history.append(val_loss)
-            #train_bleu_history.append(bleu_train)
-            val_bleu_history.append(bleu_val)
+            val_bleu_history.append(val_blue)
 
             logging.info('TRAIN Epoch: {}\tAverage loss: {:.4f}\n'.format(epoch, np.sum(train_losses)))
-            logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, BLEU: {:.7f}\n'.format(epoch, val_loss, bleu_val))
+            logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, BLEU: {:.4f}\n'.format(epoch, val_loss, val_blue))
 
             if early_stopping.is_better(val_loss):
                 logging.info('Saving current best model checkpoint...')
@@ -197,7 +196,7 @@ def main():
                 logging.info('Done.')
                 best_epoch = epoch
 
-            if early_stopping.stop(bleu_val):
+            if early_stopping.stop(val_blue):
                 logging.info('Stopping early after {} epochs.'.format(epoch))
                 stop_epoch = epoch
                 break
