@@ -40,7 +40,7 @@ def get_args():
                         required=False, type=int)
     parser.add_argument('--parallel', action='store_true', help='use all GPUs available', required=False)
     parser.add_argument('--lr', metavar='LR', dest='lr', help='learning rate', required=False, \
-                        type=float, default=1e-4)
+                        type=float, default=1e-3)
     parser.add_argument('--encoder-type', metavar='ENCODER_TYPE', dest='encoder_type', help='type of encoder model '\
                         '(gru | lstm), default="gru"', required=False, default='gru')
     parser.add_argument('--num-directions', metavar='NUM_DIRECTIONS', dest='num_directions', help='number of directions '\
