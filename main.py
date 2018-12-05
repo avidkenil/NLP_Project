@@ -169,7 +169,7 @@ def main():
             val_loss, bleu_val = test(
                 encoder = encoder,
                 decoder = decoder, 
-                dataloader = train_loader,
+                dataloader = val_loader,
                 criterion = criterion_test, 
                 epoch = epoch, 
                 max_len_target = MAX_LEN_TARGET, 
@@ -183,7 +183,7 @@ def main():
             #train_bleu_history.append(bleu_train)
             val_bleu_history.append(bleu_val)
 
-            logging.info('TRAIN Epoch: {}\tAverage loss: {:.4f}'.format(epoch, np.sum(train_losses)))
+            logging.info('TRAIN Epoch: {}\tAverage loss: {:.4f}\n'.format(epoch, np.sum(train_losses)))
             logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, BLEU: {:.7f}\n'.format(epoch, val_loss, bleu_val))
 
             if early_stopping.is_better(val_loss):

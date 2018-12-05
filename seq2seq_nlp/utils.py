@@ -118,7 +118,7 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
         loss_hist.append(loss_train)
 
         # Print 50 times in a batch; if dataset too small print every time (to avoid division by 0)
-        if (batch_idx+1) % max(1, (len(dataloader.dataset)//(50*source.shape[0]))) == 0:
+        if (batch_idx+1) % max(1, (len(dataloader.dataset)//(25*source.shape[0]))) == 0:
             logging.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, (batch_idx+1) * source.shape[0], len(dataloader.dataset),
                 100. * (batch_idx+1) / len(dataloader), loss.item()))
@@ -191,8 +191,6 @@ def test(encoder, decoder, dataloader, criterion, epoch, max_len_target, device,
                 current_output = decoder_output_step.topk(1,dim=1)[1].cpu().squeeze(1).numpy()
                 #eos token id = 3
                 idxs_to_ignore = np.where(current_output == token2id['<eos>'])[0]
-                if(len(idxs_to_ignore) !=0):
-                    print('HEYO I REACH')
                 set_got_eos |= set(idxs_to_ignore)
                 if(len(set_got_eos) == source.size(0)):
                     break
