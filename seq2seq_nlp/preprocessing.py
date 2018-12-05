@@ -37,8 +37,6 @@ def get_counts(project_dir, data_dir, dataset, vocab_size, is_source, unk_thresh
             logging.info(f'Is source: {is_source}')
             all_tokens = [tok for sentence in data for tok in sentence]
             save_object(all_tokens, all_tokens_path)
-            if not is_source:
-                data = add_special_symbols(data)
         logging.info(f'Number of tokens: {len(all_tokens)}')
         counts = Counter(all_tokens)
         logging.info('Saving counts')
@@ -153,11 +151,11 @@ def generate_dataloader(project_dir, data_dir, source_dataset, target_dataset, k
         max_len_target = np.array([len(sent) for sent in data['target']], dtype=np.int64).max()
 
     logging.info('Creating Dataloader')
-    dataset = NMTDataset(data, max_len_source=max_len_source, max_len_target=max_len_target, pad_idx=PAD_IDX)
+    dataset = NMTDataset(data, max_len_source=max_len_source, max_len_target=max_len_target)
     shuffle = True if kind == 'train' else False
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, \
                             collate_fn=partial(nmt_collate_fn, max_len_source=max_len_source, \
-                            max_len_target = max_len_target))
+                            max_len_target=max_len_target))
 
     if kind == 'train':
         return dataloader, len(id2token['source']), len(id2token['target']), \
