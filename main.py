@@ -27,7 +27,8 @@ args = get_args()
 PROJECT_DIR = args.project_dir
 SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
 DATA_DIR,  PLOTS_DIR, LOGGING_DIR = args.data_dir, 'plots', 'logs'
-DATA_DIR = os.path.join(DATA_DIR, '{}-{}'.format(SOURCE_DATASET, TARGET_DATASET))
+args.data_dir = DATA_DIR = os.path.join(DATA_DIR, '{}-{}'\
+                                        .format(SOURCE_DATASET, TARGET_DATASET))
 CHECKPOINTS_DIR, CHECKPOINT_FILE = args.checkpoints_dir, args.load_ckpt
 ENCODER_MODEL_CKPT, DECODER_MODEL_CKPT = args.load_enc_ckpt, args.load_dec_ckpt
 SOURCE_VOCAB, TARGET_VOCAB = args.source_vocab, args.target_vocab

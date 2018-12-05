@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 
 
 class NMTDataset(Dataset):
-    def __init__(self, data, max_len_source=300, max_len_target=300, pad_idx=0):
+    def __init__(self, data, max_len_source=100, max_len_target=100, pad_idx=0):
         logging.info('Truncating to maximum lengths and '\
                       'padding all sequences with required zeros.')
 

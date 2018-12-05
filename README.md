@@ -57,8 +57,8 @@ optional arguments:
   --load-dec-ckpt LOAD_DEC_CKPT               name of decoder file to load
   --source-vocab SOURCE_VOCAB                 source dataset vocabulary size, default=50000
   --target-vocab TARGET_VOCAB                 target dataset vocabulary size, default=50000
-  --max-len-source MAX_LEN_SOURCE             max sentence length of source, default=300
-  --max-len-target MAX_LEN_TARGET             max sentence length of target, default=600
+  --max-len-source MAX_LEN_SOURCE             max sentence length of source, default=100
+  --max-len-target MAX_LEN_TARGET             max sentence length of target, default=100
   --unk-threshold UNK_THRESHOLD               count threshold below which words are to be treated as UNK
   --batch-size BATCH_SIZE                     batch size, default=32
   --epochs EPOCHS                             number of epochs, default=10
@@ -70,8 +70,8 @@ optional arguments:
   --lr LR                                     learning rate, default=1e-4
   --encoder-type ENCODER_TYPE                 type of encoder model (gru | lstm), default="gru"
   --num-directions NUM_DIRECTIONS             number of directions in encoder, default=2
-  --encoder-num-layers ENCODER_NUM_LAYERS     number of layers in encoder, default=1
-  --decoder-num-layers DECODER_NUM_LAYERS     number of layers in decoder, default=1
+  --encoder-num-layers ENCODER_NUM_LAYERS     number of layers in encoder, default=2
+  --decoder-num-layers DECODER_NUM_LAYERS     number of layers in decoder, default=2
   --encoder-emb-size ENCODER_EMB_SIZE         embedding size of encoder, default=256
   --decoder-emb-size DECODER_EMB_SIZE         embedding size of decoder, default=256
   --encoder-hid-size ENCODER_HID_SIZE         hidden size of encoder, default=256

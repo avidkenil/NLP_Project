@@ -24,9 +24,9 @@ def get_args():
     parser.add_argument('--target-vocab', metavar='TARGET_VOCAB', dest='target_vocab', \
                         help='target dataset vocabulary size', required=False, default=50000, type=int)
     parser.add_argument('--max-len-source', metavar='MAX_LEN_SOURCE', dest='max_len_source', \
-                        help='max sentence length of source', required=False, type=int, default=300)
+                        help='max sentence length of source', required=False, type=int, default=100)
     parser.add_argument('--max-len-target', metavar='MAX_LEN_TARGET', dest='max_len_target', \
-                        help='max sentence length of target', required=False, type=int, default=600)
+                        help='max sentence length of target', required=False, type=int, default=100)
     parser.add_argument('--unk-threshold', metavar='UNK_THRESHOLD', dest='unk_threshold', help='threshold '\
                         'of count below which words are to be treated as UNK', required=False, type=int, default=5)
     parser.add_argument('--batch-size', metavar='BATCH_SIZE', dest='batch_size', help='batch size', \
@@ -46,9 +46,9 @@ def get_args():
     parser.add_argument('--num-directions', metavar='NUM_DIRECTIONS', dest='num_directions', help='number of directions '\
                         'in encoder, default=2', required=False, type=int, default=2)
     parser.add_argument('--encoder-num-layers', metavar='ENCODER_NUM_LAYERS', dest='encoder_num_layers', help='number of '\
-                        'layers in encoder, default=1', required=False, type=int, default=1)
+                        'layers in encoder, default=2', required=False, type=int, default=2)
     parser.add_argument('--decoder-num-layers', metavar='DECODER_NUM_LAYERS', dest='decoder_num_layers', help='number of '\
-                        'layers in decoder, default=1', required=False, type=int, default=1)
+                        'layers in decoder, default=2', required=False, type=int, default=2)
     parser.add_argument('--encoder-emb-size', metavar='ENCODER_EMB_SIZE', dest='encoder_emb_size', help='embedding size '\
                         'of encoder, default=256', required=False, type=int, default=256)
     parser.add_argument('--decoder-emb-size', metavar='DECODER_EMB_SIZE', dest='decoder_emb_size', help='embedding size '\

@@ -10,7 +10,7 @@ from pprint import pformat
 
 import torch
 from torch import nn
-from torch.nn import functional
+import torch.nn.functional as F
 from torch.autograd import Variable
 
 import matplotlib
@@ -53,7 +53,7 @@ def masked_cross_entropy(logits, target, length, device):
     # logits_flat: (batch * max_len, num_classes)
     logits_flat = logits.view(-1, logits.size(-1))
     # log_probs_flat: (batch * max_len, num_classes)
-    log_probs_flat = functional.log_softmax(logits_flat)
+    log_probs_flat = F.log_softmax(logits_flat)
     # target_flat: (batch * max_len, 1)
     target_flat = target.view(-1, 1)
     # losses_flat: (batch * max_len, 1)
@@ -242,7 +242,6 @@ def dump_ind_data(obj, path):
 def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
                     train_bleu_history, val_bleu_history, epoch, args, project_dir,
                     checkpoints_dir, is_parallel=False):
-
     state_dict = {
         'encoder_state_dict': encoder.module.state_dict() if is_parallel else encoder.state_dict(),
         'decoder_state_dict': decoder.module.state_dict() if is_parallel else decoder.state_dict(),
@@ -254,13 +253,12 @@ def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_hi
         'val_bleu_history': val_bleu_history
     }
 
-    source_dataset = os.path.splitext(args.source_dataset)[0]
-    target_dataset = os.path.splitext(args.target_dataset)[0]
-    params = [source_dataset, target_dataset, args.source_vocab, args.target_vocab, \
-              args.max_len_source, args.max_len_target, args.encoder_type, \
-              args.num_directions, args.encoder_num_layers, args.decoder_num_layers, \
-              args.encoder_emb_size, args.decoder_emb_size, args.encoder_hid_size, \
-              args.encoder_dropout, args.decoder_dropout, args.decoder_hid_size]
+    params = [args.source_dataset, args.target_dataset, args.source_vocab, \
+              args.target_vocab, args.max_len_source, args.max_len_target, \
+              args.encoder_type, args.num_directions, args.encoder_num_layers, \
+              args.decoder_num_layers, args.encoder_emb_size, args.decoder_emb_size, \
+              args.encoder_hid_size, args.encoder_dropout, args.decoder_dropout, \
+              args.decoder_hid_size]
 
     state_dict_name = 'state_dict' + '_{}'*len(params) + '_epoch{}.pkl'
     state_dict_name = state_dict_name.format(*params, epoch)
@@ -270,14 +268,12 @@ def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_hi
     logging.info('Done.')
 
 def remove_checkpoint(args, project_dir, checkpoints_dir, epoch):
-    source_dataset = os.path.splitext(args.source_dataset)[0]
-    target_dataset = os.path.splitext(args.target_dataset)[0]
-    params = [source_dataset, target_dataset, args.source_vocab, args.target_vocab, \
-              args.max_len_source, args.max_len_target, args.encoder_type, \
-              args.num_directions, args.encoder_num_layers, args.decoder_num_layers, \
-              args.encoder_emb_size, args.decoder_emb_size, args.encoder_hid_size, \
-              args.encoder_dropout, args.decoder_dropout, args.decoder_hid_size]
-
+    params = [args.source_dataset, args.target_dataset, args.source_vocab, \
+              args.target_vocab, args.max_len_source, args.max_len_target, \
+              args.encoder_type, args.num_directions, args.encoder_num_layers, \
+              args.decoder_num_layers, args.encoder_emb_size, args.decoder_emb_size, \
+              args.encoder_hid_size, args.encoder_dropout, args.decoder_dropout, \
+              args.decoder_hid_size]
 
     state_dict_name = 'state_dict' + '_{}'*len(params) + '_epoch{}.pkl'
     state_dict_name = state_dict_name.format(*params, epoch)
@@ -326,13 +322,12 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
             train_bleu_history, val_bleu_history, epoch_trained
 
 def save_model(model, model_name, epoch, args, project_dir, checkpoints_dir):
-    source_dataset = os.path.splitext(args.source_dataset)[0]
-    target_dataset = os.path.splitext(args.target_dataset)[0]
-    params = [source_dataset, target_dataset, args.source_vocab, args.target_vocab, \
-              args.max_len_source, args.max_len_target, args.encoder_type, \
-              args.num_directions, args.encoder_num_layers, args.decoder_num_layers, \
-              args.encoder_emb_size, args.decoder_emb_size, args.encoder_hid_size, \
-              args.encoder_dropout, args.decoder_dropout, args.decoder_hid_size]
+    params = [args.source_dataset, args.target_dataset, args.source_vocab, \
+              args.target_vocab, args.max_len_source, args.max_len_target, \
+              args.encoder_type, args.num_directions, args.encoder_num_layers, \
+              args.decoder_num_layers, args.encoder_emb_size, args.decoder_emb_size, \
+              args.encoder_hid_size, args.encoder_dropout, args.decoder_dropout, \
+              args.decoder_hid_size]
 
     checkpoint_name = model_name + '_{}'*len(params) + '_epoch{}.pt'
     checkpoint_name = checkpoint_name.format(*params, epoch)
