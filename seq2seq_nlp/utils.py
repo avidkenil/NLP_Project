@@ -103,7 +103,6 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
         loss /= target_lens.data.sum().item() # Take per-element average
         #decoder.decode(decoder, target, target_lens, decoder_hidden_step,
                        #criterion=None)
-
         # loss = masked_cross_entropy(decoder_outputs[:,:max_batch_target_len,:].contiguous(),target,target_lens,device)
         optimizer.zero_grad()
         loss.backward()
@@ -115,7 +114,7 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
         optimizer.step()
 
         # Accurately compute loss, because of different batch size
-        loss_train = loss.item() / len(dataloader.dataset)
+        loss_train = loss.item() *len(source)/ len(dataloader.dataset)
         loss_hist.append(loss_train)
 
         # Print 50 times in a batch; if dataset too small print every time (to avoid division by 0)
@@ -129,7 +128,7 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
 
 def convert_idxs_to_sent(idxs,id2token,token2id):
     list_toks = []
-    for i in range(idxs):
+    for i in range(len(idxs)):
         if idxs[i] not in [token2id['<pad>'],token2id['<sos>'],token2id['<eos>']]:
             list_toks.append(id2token[idxs[i]])
     return ' '.join(list_toks)
@@ -180,6 +179,7 @@ def test(encoder, decoder, dataloader, criterion, epoch, max_len_target, device,
             set_all_batches = set(range(source.size(0)))
             set_got_eos = set()
             for step in range(max_len_target):
+                
                 decoder_output_step, decoder_hidden_step, attn_weights_step = \
                     decoder(input_seq, decoder_hidden_step, source_lens,
                             encoder_output)
@@ -188,9 +188,11 @@ def test(encoder, decoder, dataloader, criterion, epoch, max_len_target, device,
                 input_seq = target[:,step] # change this line to change what to give as the next input to the decoder
                 if(step < max_batch_target_len):
                     loss += criterion(decoder_output_step, input_seq)
-                current_output = decoder_output_step.topk(1,dim=1).cpu().numpy()
+                current_output = decoder_output_step.topk(1,dim=1)[1].cpu().squeeze(1).numpy()
                 #eos token id = 3
-                idxs_to_ignore = np.where(current_output == 3)[0]
+                idxs_to_ignore = np.where(current_output == token2id['<eos>'])[0]
+                if(len(idxs_to_ignore) !=0):
+                    print('HEYO I REACH')
                 set_got_eos |= set(idxs_to_ignore)
                 if(len(set_got_eos) == source.size(0)):
                     break
@@ -204,36 +206,18 @@ def test(encoder, decoder, dataloader, criterion, epoch, max_len_target, device,
             loss /= target_lens.data.sum().item() # Take per-element average
 
             # Accurately compute loss, because of different batch size
-            loss_test += loss.item() / len(dataloader.dataset)
+            loss_test += loss.item() *len(source)/ len(dataloader.dataset)
 
     bleu_score = sacrebleu.corpus_bleu(all_output_sents, [all_target_sents]).score
     #logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, BLEU: {:.0f}%\n'.format(epoch, loss_test, bleu_score))
-
+    # if epoch == 30:
+    #     print('HEY')
+    #     print(list(zip(all_output_sents[:3],all_target_sents[:3])))
+    #     print(len(all_output_sents[0]),len(all_output_sents[1]), len(all_output_sents[2]))
     return loss_test,bleu_score
 
 
 
-def test(encoder, decoder, dataloader, criterion, device):
-    encoder.eval()
-    decoder.eval()
-
-    loss_test = 0.
-    y_hist = []
-    output_hist = []
-    with torch.no_grad():
-        for batch_idx, (x, y) in enumerate(dataloader):
-            x, y = x.to(device), y.to(device)
-            encoder_output = encoder(x)
-            decoder_output = decoder(encoder_output)
-            loss = criterion(decoder_output, y)
-
-            # Accurately compute loss, because of different batch size
-            loss_test += loss.item() / len(dataloader.dataset)
-
-            output_hist.append(decoder_output)
-            y_hist.append(y)
-
-    return loss_test, torch.cat(output_hist, dim=0), torch.cat(y_hist, dim=0)
 
 def print_config(vars_dict):
     vars_dict = {key: value for key, value in vars_dict.items() if key == key.upper() \
