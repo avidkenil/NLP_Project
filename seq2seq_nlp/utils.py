@@ -206,7 +206,9 @@ def test(encoder, decoder, dataloader, criterion, epoch, max_len_target, device,
             # Accurately compute loss, because of different batch size
             loss_test += loss.item() *len(source)/ len(dataloader.dataset)
 
-    bleu_score = sacrebleu.corpus_bleu(all_output_sents, [all_target_sents]).score
+    #pot for higher score if lowercased, needs to be less accurate
+    
+    bleu_score = sacrebleu.corpus_bleu(all_output_sents, [all_target_sents],lowercase=True).score
     #logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, BLEU: {:.0f}%\n'.format(epoch, loss_test, bleu_score))
     # if epoch == 30:
     #     print('HEY')
