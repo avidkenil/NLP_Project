@@ -95,7 +95,7 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
             decoder_output_step, decoder_hidden_step, attn_weights_step = \
                 decoder(input_seq, decoder_hidden_step, source_lens,
                         encoder_output)
-            input_seq = target[:,step] # Change this line to change what to give as the next input to the decoder
+            input_seq = target[:, step + 1] # Change this line to change what to give as the next input to the decoder
             loss += criterion(decoder_output_step, input_seq)
         loss /= target_lens.data.sum().item() # Take per-element average
 
@@ -156,7 +156,7 @@ def test(encoder, decoder, dataloader, criterion, epoch, max_len_target, id2toke
                     decoder(input_seq, decoder_hidden_step, source_lens,
                             encoder_output)
 
-                input_seq = target[:,step] # Change this line to change what to give as the next input to the decoder
+                input_seq = target[:, step + 1] # Change this line to change what to give as the next input to the decoder
                 if step < max_batch_target_len:
                     loss += criterion(decoder_output_step, input_seq)
                 current_output = decoder_output_step.topk(1, dim=1)[1].cpu().squeeze(1).numpy()
