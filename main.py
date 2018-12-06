@@ -116,8 +116,8 @@ def main():
 
     # Define criteria and optimizer
     # Ignore padding indexes
-    criterion_train = nn.CrossEntropyLoss(reduction='sum', ignore_index=0)
-    criterion_test = nn.CrossEntropyLoss(reduction='sum', ignore_index=0)
+    criterion_train = nn.NLLLoss(reduction='sum', ignore_index=0)
+    criterion_test = nn.NLLLoss(reduction='sum', ignore_index=0)
     optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=LR)
 
     train_loss_history, train_bleu_history = [], []
