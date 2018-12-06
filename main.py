@@ -35,6 +35,7 @@ SOURCE_VOCAB, TARGET_VOCAB = args.source_vocab, args.target_vocab
 MAX_LEN_SOURCE, MAX_LEN_TARGET = args.max_len_source, args.max_len_target
 UNK_THRESHOLD = args.unk_threshold
 CLIP_PARAM = args.clip_param
+BEAM_SIZE = args.beam_size
 
 # Model hyperparameters
 ENCODER_TYPE = args.encoder_type        # Type of encoder
@@ -163,7 +164,7 @@ def main():
                 epoch=epoch,
                 max_len_target=MAX_LEN_TARGET,
                 clip_param=CLIP_PARAM,
-                device=DEVICE
+                device=DEVICE,
             )
 
             val_loss, val_blue = test(
@@ -175,7 +176,8 @@ def main():
                 max_len_target=MAX_LEN_TARGET,
                 id2token=id2token['target'],
                 token2id=token2id['target'],
-                device=DEVICE
+                device=DEVICE,
+                beam_size=BEAM_SIZE,
             )
 
             train_loss_history.extend(train_losses)

@@ -10,3 +10,4 @@ dependencies:
     - scikit-learn
     - torch==0.4.1
     - sacrebleu
+    - revtok
