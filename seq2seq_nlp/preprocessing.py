@@ -5,8 +5,7 @@ from collections import Counter
 from seq2seq_nlp.datasets import *
 from seq2seq_nlp.utils import *
 from functools import partial
-# not removing punctuation: does BLEU count correctly translated punctuation?
-# not tokenizing
+
 
 PAD, PAD_IDX = '<pad>', 0
 UNK, UNK_IDX = '<unk>', 1
