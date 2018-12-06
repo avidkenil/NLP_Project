@@ -4,8 +4,8 @@
 #SBATCH --job-name=train_MT
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --time=20:00
-#SBATCH --mem=60GB
+#SBATCH --time=15:00
+#SBATCH --mem=30GB
 #SBATCH --gres=gpu:1
 
 module load python3/intel/3.6.3
@@ -21,5 +21,6 @@ python main.py --epochs 1\
                --decoder-num-layers 1\
                --encoder-emb-size 30\
                --decoder-emb-size 30\
-               --encoder-hid-size 50
+               --encoder-hid-size 50\
+               --beam-size 5
 

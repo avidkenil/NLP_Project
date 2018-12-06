@@ -61,6 +61,8 @@ def get_args():
                         help='dropout rate in decoder FC layer, default=0.', required=False, type=float, default=0.)
     parser.add_argument('--clip-param', metavar='CLIP_PARAM', dest='clip_param', \
                         help='clip parameter value for exploding gradients', required=False, type=float, default=5.0)
+    parser.add_argument('--beam-size', metavar='BEAM_SIZE', dest='beam_size', \
+                        help='Beam size to use during beam search', required=False, type=int, default=5)
     parser.add_argument('--force', action='store_true', help='overwrites all existing dumped data sets')
     args = parser.parse_args()
 
