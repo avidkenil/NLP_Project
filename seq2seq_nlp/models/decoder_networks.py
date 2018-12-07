@@ -27,4 +27,4 @@ class RNNDecoder(nn.Module):
         output = output.squeeze(1) # output: B x 1 x H -> B x H
         output = self.fc1(output)
         attn_weights = None
-        return F.log_softmax(output), hidden, attn_weights
+        return F.log_softmax(output, dim=1), hidden, attn_weights
