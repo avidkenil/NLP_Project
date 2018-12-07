@@ -131,6 +131,7 @@ def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
     decoder.eval()
     all_output_sentences, all_target_sentences = [], []
     with torch.no_grad():
+        start = time.time()
         for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
             source, source_lens  = source.to(device), source_lens.to(device)
             target, target_lens = target.to(device), target_lens.to(device)
@@ -150,8 +151,7 @@ def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
             input_seq = target[:,0]
 
             max_batch_target_len = target_lens.data.max().item()
-            batch_beam = [{'prob': [], 'seq_ixs': [0 for _ in range(max_len_target)], 'loss': []}\
-                          for i in range(batch_size)]
+            batch_beam = [{'prob': [], 'seq_ixs': [0 for _ in range(max_len_target)]} for i in range(batch_size)]
 
             # first step
             decoder_output, decoder_hidden, attn_weights =\
@@ -200,28 +200,28 @@ def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
                         if not_done:
                             is_finished = False
                             batch_beam[i]['prob'][j] = - neg_prob
-                            sequence_ixs = batch_beam[i][beam_ix] + [word_ix]
+                            sequence_ixs = batch_beam[i]['seq_ixs'][beam_ix] + [word_ix]
                             batch_beam[i]['seq_ixs'][j] = sequence_ixs
 
                 if is_finished:
                     break
 
-                input_seq = target[:, step + 1]
+                if step + 1 < max_len_target:
+                    input_seq = target[:, step + 1]
 
-            final_outputs = torch.LongTensor(batch_size, max_len_target)
+            final_outputs = np.zeros((batch_size, max_len_target))
             for i in range(batch_size):
                 best_beam_ix = np.argmax(batch_beam[i]['prob'])
-                final_outputs[i, :] = batch_beam[i]["seq_ixs"][best_beam_ix]
+                best_seq = batch_beam[i]["seq_ixs"][best_beam_ix]
+                final_outputs[i, :len(best_seq)] = best_seq
 
-            target_sentences, output_sentences = get_all_sentences(target.cpu().numpy(), decoder_outputs, \
+
+            target_sentences, output_sentences = get_all_sentences(target.cpu().numpy(), final_outputs, \
                                                                    id2token, token2id)
             all_output_sentences.extend(output_sentences)
             all_target_sentences.extend(target_sentences)
 
-            loss /= target_lens.data.sum().item() # Take per-element average
-
-            # Accurately compute loss, because of different batch size
-            loss_test += loss.item() *len(source)/ len(dataloader.dataset)
+        logging.info(f"Each loop with beam search took on average {(time.time()-start) / len(dataloader):.3f} seconds per batch")
 
     bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences]).score
     return bleu_score
@@ -403,7 +403,7 @@ def dump_ind_data(obj, path):
             fout.write(s)
 
 def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                    train_bleu_history, val_bleu_history, epoch, args, project_dir,
+                    train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch, args, project_dir,
                     checkpoints_dir, is_parallel=False):
     state_dict = {
         'encoder_state_dict': encoder.module.state_dict() if is_parallel else encoder.state_dict(),
@@ -413,7 +413,8 @@ def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_hi
         'train_loss_history': train_loss_history,
         'val_loss_history': val_loss_history,
         'train_bleu_history': train_bleu_history,
-        'val_bleu_history': val_bleu_history
+        'val_greedy_bleu_history': val_greedy_bleu_history,
+        'val_beam_bleu_history': val_beam_bleu_history
     }
 
     params = [args.source_dataset, args.target_dataset, args.source_vocab, \
@@ -450,7 +451,7 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
     # Note: Input model & optimizer should be pre-defined. This routine only updates their states.
 
     train_loss_history, val_loss_history = [], []
-    train_bleu_history, val_bleu_history = [], []
+    train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history = [], [], []
     epoch_trained = 0
 
     state_dict_path = os.path.join(project_dir, checkpoints_dir, checkpoint_file)
@@ -469,7 +470,8 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
         train_loss_history = state_dict['train_loss_history']
         val_loss_history = state_dict['val_loss_history']
         train_bleu_history = state_dict['train_bleu_history']
-        val_bleu_history = state_dict['val_bleu_history']
+        val_greedy_bleu_history = state_dict['val_greedy_bleu_history']
+        val_beam_bleu_history = state_dict['val_beam_bleu_history']
 
         for state in optimizer.state.values():
             for k, v in state.items():
@@ -482,7 +484,7 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
         raise FileNotFoundError('No checkpoint found at "{}"!'.format(state_dict_path))
 
     return encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-            train_bleu_history, val_bleu_history, epoch_trained
+            train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch_trained
 
 def save_model(model, model_name, epoch, args, project_dir, checkpoints_dir):
     params = [args.source_dataset, args.target_dataset, args.source_vocab, \
