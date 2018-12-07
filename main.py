@@ -177,7 +177,6 @@ def main():
                 id2token=id2token['target'],
                 token2id=token2id['target'],
                 device=DEVICE,
-                beam_size=BEAM_SIZE,
             )
 
             train_loss_history.extend(train_losses)
