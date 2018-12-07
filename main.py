@@ -167,21 +167,17 @@ def main():
                 device=DEVICE,
             )
 
-            # val_loss, val_greedy_bleu = test(
-            #     encoder=encoder,
-            #     decoder=decoder,
-            #     dataloader=val_loader,
-            #     criterion=criterion_test,
-            #     epoch=epoch,
-            #     max_len_target=MAX_LEN_TARGET,
-            #     id2token=id2token['target'],
-            #     token2id=token2id['target'],
-            #     device=DEVICE,
-            # )
-
-            # todo: remove
-            val_greedy_bleu = 5
-            val_loss = 9
+            val_loss, val_greedy_bleu = test(
+                encoder=encoder,
+                decoder=decoder,
+                dataloader=val_loader,
+                criterion=criterion_test,
+                epoch=epoch,
+                max_len_target=MAX_LEN_TARGET,
+                id2token=id2token['target'],
+                token2id=token2id['target'],
+                device=DEVICE,
+            )
 
             val_beam_bleu = test_beam_search(
                 encoder=encoder,
@@ -196,13 +192,15 @@ def main():
                 beam_size=BEAM_SIZE
             )
 
+
+
             train_loss_history.extend(train_losses)
             val_loss_history.append(val_loss)
             val_greedy_bleu_history.append(val_greedy_bleu)
             val_beam_bleu_history.append(val_beam_bleu)
 
             logging.info('TRAIN Epoch: {}\tAverage loss: {:.4f}\n'.format(epoch, np.sum(train_losses)))
-            logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, BLEU: {:.4f}\n'.format(epoch, val_loss, val_beam_bleu))
+            logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, greedy BLEU: {:.4f}, beam BLEU: {:.4f}\n'.format(epoch, val_loss, val_greedy_bleu, val_beam_bleu))
 
             if early_stopping.is_better(val_loss):
                 logging.info('Saving current best model checkpoint...')

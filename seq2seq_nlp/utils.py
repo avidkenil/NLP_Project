@@ -148,9 +148,6 @@ def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
             else:
                 decoder_hidden = encoder_hidden
 
-            # todo
-            #import pdb; pdb.set_trace()
-
             input_seq = target[:,0]
 
             max_batch_target_len = target_lens.data.max().item()
@@ -203,7 +200,7 @@ def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
                             # from an unfinished branch add the "beam_size" most probable words to come after
                             prev_prob = batch_beam[i]['prob'][k]
                             # store negative probabilities because heapq returns smallest values
-                            new_probs = - (prev_prob + dec_out_vals[i])
+                            new_probs = - dec_out_vals[i]
                             new_ixs = dec_out_ixs[i]
                             new_is_done = [ix == token2id['<eos>'] for ix in new_ixs]
                             new_outputs = tuple(zip(new_probs, new_ixs, [k] * beam_size, new_is_done))
@@ -256,10 +253,11 @@ def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
                     target_step = target[:, step + 1]
 
             final_outputs = np.zeros((batch_size, max_len_target))
+            avg = []
             for i in range(batch_size):
-                best_seq = batch_beam[i]["seq_ixs"][0]
+                best_ix = 0
+                best_seq = batch_beam[i]["seq_ixs"][best_ix]
                 final_outputs[i, :len(best_seq)] = best_seq
-
 
             target_sentences, output_sentences = get_all_sentences(target.cpu().numpy(), final_outputs, \
                                                                    id2token, token2id)
