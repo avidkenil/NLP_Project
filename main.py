@@ -179,6 +179,19 @@ def main():
                 device=DEVICE,
             )
 
+            val_blue = test_beam_search(
+                encoder=encoder,
+                decoder=decoder,
+                dataloader=val_loader,
+                criterion=criterion_test,
+                epoch=epoch,
+                max_len_target=MAX_LEN_TARGET,
+                id2token=id2token['target'],
+                token2id=token2id['target'],
+                device=DEVICE,
+                beam_size=BEAM_SIZE
+            )
+
             train_loss_history.extend(train_losses)
             val_loss_history.append(val_loss)
             val_bleu_history.append(val_blue)
@@ -203,7 +216,7 @@ def main():
                 break
         except KeyboardInterrupt:
             logging.info('Keyboard Interrupted!')
-            stop_epoch = epoch-1
+            stop_epoch = epoch - 1
             break
 
     # Save the model checkpoints
