@@ -124,13 +124,13 @@ def main():
     optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=LR)
 
     train_loss_history, train_bleu_history = [], []
-    val_loss_history, val_bleu_history = [], []
+    val_loss_history, val_greedy_bleu_history, val_beam_bleu_history = [], [], []
 
     # Load model state dicts / models if required
     epoch_trained = 0
     if CHECKPOINT_FILE: # First check for state dicts
         encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-        train_bleu_history, val_bleu_history, epoch_trained = \
+        train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch_trained = \
             load_checkpoint(encoder, decoder, optimizer, CHECKPOINT_FILE, \
                             PROJECT_DIR, CHECKPOINTS_DIR, DEVICE)
     elif ENCODER_MODEL_CKPT or DECODER_MODEL_CKPT: # Otherwise check for entire model
@@ -172,7 +172,7 @@ def main():
                 joint_hidden_ec = JOINT_HIDDEN_EC
             )
 
-            val_loss, val_blue = test(
+            val_loss, val_greedy_bleu = test(
                 encoder=encoder,
                 decoder=decoder,
                 dataloader=train_loader,
@@ -185,17 +185,33 @@ def main():
                 joint_hidden_ec = JOINT_HIDDEN_EC
             )
 
+            val_beam_bleu = test_beam_search(
+                encoder=encoder,
+                decoder=decoder,
+                dataloader=val_loader,
+                criterion=criterion_test,
+                epoch=epoch,
+                max_len_target=MAX_LEN_TARGET,
+                id2token=id2token['target'],
+                token2id=token2id['target'],
+                device=DEVICE,
+                beam_size=BEAM_SIZE
+            )
+
+
+
             train_loss_history.extend(train_losses)
             val_loss_history.append(val_loss)
-            val_bleu_history.append(val_blue)
+            val_greedy_bleu_history.append(val_greedy_bleu)
+            val_beam_bleu_history.append(val_beam_bleu)
 
             logging.info('TRAIN Epoch: {}\tAverage loss: {:.4f}\n'.format(epoch, np.sum(train_losses)))
-            logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, BLEU: {:.4f}\n'.format(epoch, val_loss, val_blue))
+            logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, greedy BLEU: {:.4f}, beam BLEU: {:.4f}\n'.format(epoch, val_loss, val_greedy_bleu, val_beam_bleu))
 
             if early_stopping.is_better(val_loss):
                 logging.info('Saving current best model checkpoint...')
                 save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                                train_bleu_history, val_bleu_history, epoch, args, \
+                                train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch, args, \
                                 PROJECT_DIR, CHECKPOINTS_DIR, PARALLEL or NGPU)
                 logging.info('Done.')
                 logging.info('Removing previous best model checkpoint...')
@@ -203,20 +219,20 @@ def main():
                 logging.info('Done.')
                 best_epoch = epoch
 
-            if early_stopping.stop(val_blue):
+            if early_stopping.stop(val_beam_bleu):
                 logging.info('Stopping early after {} epochs.'.format(epoch))
                 stop_epoch = epoch
                 break
         except KeyboardInterrupt:
             logging.info('Keyboard Interrupted!')
-            stop_epoch = epoch-1
+            stop_epoch = epoch - 1
             break
 
     # Save the model checkpoints
     logging.info('Dumping model and results...')
     print_config(global_vars) # Print all global variables before saving checkpointing
     save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                    train_bleu_history, val_bleu_history, stop_epoch, args, \
+                    train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, stop_epoch, args, \
                     PROJECT_DIR, CHECKPOINTS_DIR, PARALLEL or NGPU)
     save_model(encoder, 'encoder', stop_epoch, args, PROJECT_DIR, CHECKPOINTS_DIR)
     save_model(decoder, 'decoder', stop_epoch, args, PROJECT_DIR, CHECKPOINTS_DIR)
@@ -233,11 +249,13 @@ def main():
         save_plot(PROJECT_DIR, PLOTS_DIR, fig, 'loss_vs_iterations.png')
         logging.info('Done.')
 
-    if len(train_bleu_history) and len(val_bleu_history):
+    if len(train_bleu_history) and len(val_greedy_bleu_history)\
+        and len(val_beam_bleu_history):
         logging.info('Plotting and saving BLEU histories...')
         fig = plt.figure(figsize=(10,8))
         plt.plot(train_bleu_history, alpha=0.5, color='blue', label='train')
-        plt.plot(val_bleu_history, alpha=0.5, color='orange', label='test')
+        plt.plot(val_greedy_bleu_history, alpha=0.5, color='orange', label='test_greedy')
+        plt.plot(val_beam_bleu_history, alpha=0.5, color='green', label=f'test_beam_{BEAM_SIZE}')
         plt.legend()
         plt.title('BLEU vs. Iterations')
         save_plot(PROJECT_DIR, PLOTS_DIR, fig, 'bleu_vs_iterations.png')

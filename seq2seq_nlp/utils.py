@@ -113,8 +113,8 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
             loss += criterion(decoder_output_step, target[:,step])
 
         # Take per-element average, subtracting the sos tokens for accurate computation
-        #loss /= (target_lens.data.sum().item() - source.size(0)) 
 
+        loss /= (target_lens.data.sum().item() - source.size(0))
 
         optimizer.zero_grad()
         loss.backward()
@@ -160,121 +160,151 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
     optimizer.zero_grad()
     return loss_hist
 
-# def test_beam_search(encoder, decoder, dataloader, criterion, epoch, max_len_target, id2token, token2id, device, beam_size):
-#     loss_test = 0.
-#     encoder.eval()
-#     decoder.eval()
-#     all_output_sentences, all_target_sentences = [], []
-#     with torch.no_grad():
-#         for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
-#             source, source_lens  = source.to(device), source_lens.to(device)
-#             target, target_lens = target.to(device), target_lens.to(device)
 
-#             batch_size = source.size(0)
-#             # Init the decoder outputs with zeros and then fill them up with the values
-#             encoder_output, encoder_hidden = encoder(source, source_lens)
-#             # Doing complete teacher forcing first and then will add the probability based teacher forcing
-#             if decoder.num_layers == 1:
-#                 if encoder.num_directions == 1:
-#                     decoder_hidden = encoder_hidden[-1].unsqueeze(0)
-#                 else:
-#                     decoder_hidden = encoder_hidden[-2:]
-#             else:
-#                 decoder_hidden = encoder_hidden
+def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
+                     max_len_target, id2token, token2id, device, beam_size):
+    encoder.eval()
+    decoder.eval()
+    all_output_sentences, all_target_sentences = [], []
+    with torch.no_grad():
+        start = time.time()
+        for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
+            source, source_lens  = source.to(device), source_lens.to(device)
+            target, target_lens = target.to(device), target_lens.to(device)
 
-#             input_seq = target[:,0]
+            batch_size = source.size(0)
+            # Init the decoder outputs with zeros and then fill them up with the values
+            encoder_output, encoder_hidden = encoder(source, source_lens)
+            # Doing complete teacher forcing first and then will add the probability based teacher forcing
+            if decoder.num_layers == 1:
+                if encoder.num_directions == 1:
+                    decoder_hidden = encoder_hidden[-1].unsqueeze(0)
+                else:
+                    decoder_hidden = encoder_hidden[-2:]
+            else:
+                decoder_hidden = encoder_hidden
 
-#             max_batch_target_len = target_lens.data.max().item()
-#             decoder_outputs = np.zeros((batch_size, max_len_target))
-#             # Make sets to store which batches have reached EOS and which haven't at prediction time
-#             set_all_batches = set(range(batch_size))
-#             set_got_eos = set()
-#             batch_beam = [{'prob': [], 'seq_ixs': [], 'loss': []}\
-#                           for i in range(batch_size)]
+            input_seq = target[:,0]
 
-#             # first step
-#             decoder_output, decoder_hidden, attn_weights =\
-#                 decoder(input_seq, decoder_hidden, encoder_output)
-#             input_seq = target[:,1]
-#             loss = criterion(decoder_output, input_seq)
+            max_batch_target_len = target_lens.data.max().item()
+            batch_beam = [
+                {'prob': [],
+                'seq_ixs': [0 for _ in range(max_len_target)],
+                'item': []}
+                for i in range(batch_size)
+            ]
 
-#             decoder_output = (decoder_output.topk(beam_size, dim=1)
-#                                             .cpu().tolist())
+            # first step
+            decoder_output, decoder_hidden, attn_weights =\
+                decoder(input_seq, decoder_hidden, encoder_output)
 
-#             for i in range(batch_size):
-#                 batch_beam[i]['prob'] = decoder_output[0][i]
-#                 batch_beam[i]['seq_ixs'] = \
-#                     [[decoder_output[1][i][k]] for k in beam_size]
+            decoder_output, decoder_output_ixs = decoder_output.topk(beam_size, dim=1)
+            input_seqs = decoder_output_ixs
+            decoder_output = decoder_output.cpu().tolist()
+            decoder_output_ixs = decoder_output_ixs.cpu().tolist()
 
-#             hidden_states_beam = [decoder_hidden for l in range(beam_size)]
-#             for step in range(1, max_len_target):
+            for i in range(batch_size):
+                batch_beam[i]['prob'] = decoder_output[i]
+                batch_beam[i]['seq_ixs'] = \
+                    [[decoder_output_ixs[i][k]] for k in range(beam_size)]
+                batch_beam[i]['item'] = [(-decoder_output[i][k], decoder_output_ixs[i][k], -1, k, decoder_output_ixs[i][k] == token2id['<eos>']) for k in range(beam_size)]
 
-#                 # compute the normal loss
-#                 decoder_output, decoder_hidden, attn_weights =\
-#                     decoder(input_seq, decoder_hidden, encoder_output)
+            hidden_states_beam = [decoder_hidden for l in range(beam_size)]
+            for step in range(1, max_len_target):
+                # (batch_size, beam_size * beam_size)
+                decoder_outputs_beam = [[] for i in range(batch_size)]
+                new_hidden_states = []
+                for k in range(beam_size):
+                    hidden_state = hidden_states_beam[k]
+                    dec_out_beam, dec_hidden_beam, attn_weights_beam =\
+                        decoder(input_seqs[:, k], hidden_state, encoder_output)
+                    new_hidden_states.append(dec_hidden_beam)
+                    dec_out_vals, dec_out_ixs = (
+                        dec_out_beam.topk(beam_size, dim=1))
+                    dec_out_vals = dec_out_vals.cpu().numpy()
+                    dec_out_ixs = dec_out_ixs.cpu().numpy() # (B, beam_size)
+                    for i in range(batch_size):
+                        prev_item = batch_beam[i]['item'][k]
+                        is_done = prev_item[4]
+                        if is_done:
+                            # from a finished branch only add the final state of branch
+                            if not isinstance(prev_item, tuple) or len(prev_item) != 5:
+                                print("WRONG PREV_ITEM: ", prev_item)
+                                print("Type: ", type(prev_item))
+                            heapq.heappush(decoder_outputs_beam[i], prev_item)
+                        else:
+                            # from an unfinished branch add the "beam_size" most probable words to come after
+                            prev_prob = batch_beam[i]['prob'][k]
+                            # store negative probabilities because heapq returns smallest values
+                            new_probs = - dec_out_vals[i]
+                            new_ixs = dec_out_ixs[i]
+                            new_is_done = [ix == token2id['<eos>'] for ix in new_ixs]
+                            new_outputs = tuple(zip(new_probs, new_ixs, [k] * beam_size, new_is_done))
+                            for item in new_outputs:
+                                if not isinstance(item, tuple) or len(item) != 4:
+                                    print("WRONG ITEM: ", item)
+                                heapq.heappush(decoder_outputs_beam[i], item)
 
-#                 input_seq = target[:, step + 1] # Change this line to change what to give as the next input to the decoder
-#                 if step < max_batch_target_len:
-#                     loss += criterion(decoder_output, input_seq)
+                batch_is_done = True
+                input_seqs = torch.zeros(batch_size, beam_size, dtype=torch.long)
+                for i in range(batch_size):
+                    best_K = heapq.nsmallest(beam_size,
+                                             decoder_outputs_beam[i])
+                    if not isinstance(best_K[0], tuple):
+                        print("WRONG BEST K: ", best_K[0])
+                    decoder_outputs_beam[i] = []
+                    batch_beam_dict = {
+                        'prob': [],
+                        'seq_ixs': [],
+                        'item': [],
+                    }
+                    for j, item in enumerate(best_K):
+                        input_seqs[i, j] = int(item[1])
+                        is_old_item = len(item) == 5
+                        if is_old_item:
+                            neg_prob, word_ix, prev_beam_ix, beam_ix, is_done = item
+                            batch_beam_dict['prob'].append(- neg_prob)
+                            sequence_ixs = batch_beam[i]['seq_ixs'][beam_ix]
+                            batch_beam_dict['seq_ixs'].append(sequence_ixs)
+                            item = (neg_prob, word_ix, beam_ix, j, is_done)
+                            batch_beam_dict['item'].append(item)
+                        else:
+                            neg_prob, word_ix, prev_beam_ix, is_done = item
+                            batch_is_done = False
+                            batch_beam_dict['prob'].append(- neg_prob)
+                            sequence_ixs = batch_beam[i]['seq_ixs'][prev_beam_ix] + [word_ix]
+                            batch_beam_dict['seq_ixs'].append(sequence_ixs)
+                            item = (neg_prob, word_ix, prev_beam_ix, j, is_done)
+                            batch_beam_dict['item'].append(item)
+                        decoder_hidden = new_hidden_states[prev_beam_ix][:, i, :]
+                        hidden_states_beam[j][:, i, :] = decoder_hidden
+                    batch_beam[i] = batch_beam_dict
 
-#                 input_seq = target[:, step]
+                input_seqs = input_seqs.to(device)
 
-#                 ## compute beam search
+                if batch_is_done:
+                    break
 
-#                 # (batch_size, beam_size * beam_size)
-#                 decoder_outputs_beam = [[] for i in range(batch_size)]
-#                 for k in range(beam_size):
-#                     hidden_state = hidden_states_beam[k]
-#                     dec_out_beam, dec_hidden_beam, attn_weights_beam =
-#                         decoder(input_seq, hidden_state, encoder_output)
-#                     hidden_states_beam[k] = dec_hidden_beam
-#                     dec_out_vals, dec_out_ixs = (
-#                         dec_out_beam.topk(beam_size, dim=1)
-#                                     .cpu().tolist()) # (B, beam_size)
-#                     for i in range(batch_size):
-#                         prev_prob = batch_beam[i]['prob'][k]
-#                         # store negative probabilities because heapq returns smallest values
-#                         new_probs = [-prev_prob * prob for prob in dec_out_vals[i]
-#                         new_ixs = [ix for ix in dec_out_ixs[i]]
-#                         new_outputs = list(zip(new_probs, new_ixs, [k] * beam_size))
-#                         for item in new_outputs:
-#                             heapq.heappush(decoder_outputs_beam[i], item)
+                if step + 1 < max_len_target:
+                    target_step = target[:, step + 1]
 
-#                 is_finished = True
-#                 for i in range(batch_size):
-#                     best_K = heapq.nsmallest(beam_size,
-#                                              decoder_outputs_beam[i])
-#                     for j, [neg_prob, word_ix, beam_ix] in enumerate(best_K):
-#                         not_done = batch_beam[i]['seq_ixs'][j][-1] != eos
-#                         if
+            final_outputs = np.zeros((batch_size, max_len_target))
+            avg = []
+            for i in range(batch_size):
+                best_ix = 0
+                best_seq = batch_beam[i]["seq_ixs"][best_ix]
+                final_outputs[i, :len(best_seq)] = best_seq
 
-#                         batch_beam[i]['prob'][j] = - neg_prob
-#                         sequence_ixs = batch_beam[i][beam_ix] + [word_ix]
-#                         batch_beam[i]['seq_ixs'][j] = sequence_ixs
+            target_sentences, output_sentences = get_all_sentences(target.cpu().numpy(), final_outputs, \
+                                                                   id2token, token2id)
+            all_output_sentences.extend(output_sentences)
+            all_target_sentences.extend(target_sentences)
+        logging.info('VAL   Epoch: {}\tAvg time of loop with beam search: {:.3f}\n'.format(epoch, (time.time()-start) / len(dataloader)))
+        logging.info('VAL   Epoch: {}\ttarget: {}\n'.format(epoch, all_target_sentences[1]))
+        logging.info('VAL   Epoch: {}\tbeam output: {}\n'.format(epoch, all_output_sentences[1]))
 
-#                 input_seq = target[:, step + 1]
-
-#                 current_output = decoder_output_step.topk(1, dim=1)[1].cpu().squeeze(1).numpy()
-#                 idxs_to_ignore = np.where(current_output == token2id['<eos>'])[0]
-#                 set_got_eos |= set(idxs_to_ignore)
-#                 if len(set_got_eos) == batch_size:
-#                     break
-#                 # Update the outputs only for those that haven't reached EOS yet
-#                 decoder_outputs[list(set_all_batches - set_got_eos), step] =\
-#                     current_output[list(set_all_batches - set_got_eos)]
-
-#             target_sentences, output_sentences = get_all_sentences(target.cpu().numpy(), decoder_outputs, \
-#                                                                    id2token, token2id)
-#             all_output_sentences.extend(output_sentences)
-#             all_target_sentences.extend(target_sentences)
-
-#             loss /= target_lens.data.sum().item() # Take per-element average
-
-#             # Accurately compute loss, because of different batch size
-#             loss_test += loss.item() *len(source)/ len(dataloader.dataset)
-
-#     bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences]).score
-#     return loss_test, bleu_score
+    bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences]).score
+    return bleu_score
 
 def test(encoder, decoder, dataloader, criterion, epoch, max_len_target, id2token, token2id, device,joint_hidden_ec):
     loss_test = 0.
@@ -337,8 +367,10 @@ def test(encoder, decoder, dataloader, criterion, epoch, max_len_target, id2toke
             # Accurately compute loss, because of different batch size
             loss_test += loss.item() *len(source)/ len(dataloader.dataset)
 
+    logging.info('VAL   Epoch: {}\ttarget: {}\n'.format(epoch, all_target_sentences[1]))
+    logging.info('VAL   Epoch: {}\tgreedy output: {}\n'.format(epoch, all_output_sentences[1]))
+
     #pot for higher score if lowercased, needs to be less accurate
-    
     bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences],lowercase=True).score
     #logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, BLEU: {:.0f}%\n'.format(epoch, loss_test, bleu_score))
     # if epoch == 30:
@@ -457,7 +489,7 @@ def dump_ind_data(obj, path):
             fout.write(s)
 
 def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                    train_bleu_history, val_bleu_history, epoch, args, project_dir,
+                    train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch, args, project_dir,
                     checkpoints_dir, is_parallel=False):
     state_dict = {
         'encoder_state_dict': encoder.module.state_dict() if is_parallel else encoder.state_dict(),
@@ -467,7 +499,8 @@ def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_hi
         'train_loss_history': train_loss_history,
         'val_loss_history': val_loss_history,
         'train_bleu_history': train_bleu_history,
-        'val_bleu_history': val_bleu_history
+        'val_greedy_bleu_history': val_greedy_bleu_history,
+        'val_beam_bleu_history': val_beam_bleu_history
     }
 
     params = [args.source_dataset, args.target_dataset, args.source_vocab, \
@@ -504,7 +537,7 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
     # Note: Input model & optimizer should be pre-defined. This routine only updates their states.
 
     train_loss_history, val_loss_history = [], []
-    train_bleu_history, val_bleu_history = [], []
+    train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history = [], [], []
     epoch_trained = 0
 
     state_dict_path = os.path.join(project_dir, checkpoints_dir, checkpoint_file)
@@ -523,7 +556,8 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
         train_loss_history = state_dict['train_loss_history']
         val_loss_history = state_dict['val_loss_history']
         train_bleu_history = state_dict['train_bleu_history']
-        val_bleu_history = state_dict['val_bleu_history']
+        val_greedy_bleu_history = state_dict['val_greedy_bleu_history']
+        val_beam_bleu_history = state_dict['val_beam_bleu_history']
 
         for state in optimizer.state.values():
             for k, v in state.items():
@@ -536,7 +570,7 @@ def load_checkpoint(encoder, decoder, optimizer, checkpoint_file, project_dir, c
         raise FileNotFoundError('No checkpoint found at "{}"!'.format(state_dict_path))
 
     return encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-            train_bleu_history, val_bleu_history, epoch_trained
+            train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch_trained
 
 def save_model(model, model_name, epoch, args, project_dir, checkpoints_dir):
     params = [args.source_dataset, args.target_dataset, args.source_vocab, \
@@ -616,3 +650,42 @@ class EarlyStopping(object):
         if self.num_bad_epochs >= self.patience:
             return True
         return False
+
+
+if __name__ == '__main__':
+    from preprocessing import generate_dataloader
+    from models.encoder_networks import RNNEncoder
+    from models.decoder_networks import RNNDecoder
+    source_vocab = 42141
+    target_vocab = 50000
+    batch_size = 32
+    unk_threshold = 5
+    train_loader, source_vocab, target_vocab, max_len_source, max_len_target, id2token, token2id = generate_dataloader('..', 'data/vi-en', 'vi', 'en', 'train', source_vocab, target_vocab, batch_size, 300, 300, unk_threshold, None, None, False)
+    val_loader = generate_dataloader('..', 'data/vi-en', 'vi', 'en', 'dev', \
+                                     source_vocab, target_vocab, batch_size, max_len_source, max_len_target, \
+                                     unk_threshold, id2token, token2id, False)
+    criterion = torch.nn.NLLLoss(reduction='sum', ignore_index=0)
+    epoch = 3
+    device = 'cpu'
+    encoder = RNNEncoder(kind='gru',
+                vocab_size=source_vocab,
+                embed_size=40,
+                hidden_size=40,
+                num_layers=1,
+                bidirectional=True,
+                return_type='full_last_layer',
+                dropout=0,
+                device=device)
+
+    decoder = RNNDecoder(
+            vocab_size=target_vocab,
+            embed_size=40,
+            encoder_directions=2,
+            encoder_hidden_size=40,
+            num_layers=1,
+            fc_hidden_size=40,
+            attn=None,
+            dropout=0)
+    epoch = 3
+    beam_size = 3
+    test_beam_search(encoder, decoder, train_loader, criterion, epoch, max_len_target, id2token, token2id, device, beam_size)
