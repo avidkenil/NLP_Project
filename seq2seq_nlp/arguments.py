@@ -64,6 +64,8 @@ def get_args():
     parser.add_argument('--beam-size', metavar='BEAM_SIZE', dest='beam_size', \
                         help='Beam size to use during beam search', required=False, type=int, default=5)
     parser.add_argument('--force', action='store_true', help='overwrites all existing dumped data sets')
+    parser.add_argument('--teacher-forcing-prob', metavar='TEACHER_FORCING_PROB', dest='teacher_forcing_prob', \
+                        help='clip parameter value for exploding gradients', required=False, type=float, default=0.5)
     args = parser.parse_args()
 
     return args

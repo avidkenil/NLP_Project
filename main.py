@@ -49,6 +49,8 @@ ENCODER_EMB_SIZE, DECODER_EMB_SIZE = args.encoder_emb_size, args.decoder_emb_siz
 ENCODER_HID_SIZE = args.encoder_hid_size
 args.decoder_hid_size = DECODER_HID_SIZE = ENCODER_HID_SIZE*NUM_DIRECTIONS
 ENCODER_DROPOUT, DECODER_DROPOUT = args.encoder_dropout, args.decoder_dropout
+JOINT_HIDDEN_EC = False
+TEACHER_FORCING_PROB = args.teacher_forcing_prob
 
 BATCH_SIZE = args.batch_size    # input batch size for training
 N_EPOCHS = args.epochs          # number of epochs to train
@@ -99,7 +101,6 @@ def main():
                 hidden_size=ENCODER_HID_SIZE,
                 num_layers=ENCODER_NUM_LAYERS,
                 bidirectional=BIDIRECTIONAL,
-                return_type='full_last_layer',
                 dropout=ENCODER_DROPOUT,
                 device=DEVICE)
 
@@ -111,7 +112,9 @@ def main():
             num_layers=DECODER_NUM_LAYERS,
             fc_hidden_size=DECODER_HID_SIZE,
             attn=None,
-            dropout=DECODER_DROPOUT)
+            dropout=DECODER_DROPOUT,
+            joint_hidden_ec = JOINT_HIDDEN_EC,
+            device=DEVICE)
     logging.info('Done.')
 
     # Define criteria and optimizer
@@ -165,18 +168,21 @@ def main():
                 max_len_target=MAX_LEN_TARGET,
                 clip_param=CLIP_PARAM,
                 device=DEVICE,
+                teacher_forcing_prob = TEACHER_FORCING_PROB,
+                joint_hidden_ec = JOINT_HIDDEN_EC
             )
 
             val_loss, val_blue = test(
                 encoder=encoder,
                 decoder=decoder,
-                dataloader=val_loader,
+                dataloader=train_loader,
                 criterion=criterion_test,
                 epoch=epoch,
                 max_len_target=MAX_LEN_TARGET,
                 id2token=id2token['target'],
                 token2id=token2id['target'],
                 device=DEVICE,
+                joint_hidden_ec = JOINT_HIDDEN_EC
             )
 
             train_loss_history.extend(train_losses)

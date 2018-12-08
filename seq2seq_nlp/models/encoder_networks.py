@@ -13,8 +13,8 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 class RNNEncoder(nn.Module):
 
     def __init__(self, kind, vocab_size, embed_size, hidden_size,
-                 num_layers, bidirectional, return_type='full_last_layer',
-                 dropout=0.5, device='cpu'):
+                 num_layers, bidirectional,
+                 dropout=0.2, device='cpu'):
         '''
         Arg in:
             kind (str): one of: 'rnn', 'gru', 'lstm'
@@ -38,18 +38,19 @@ class RNNEncoder(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.num_directions = 2 if bidirectional else 1
-        self.return_type = return_type
 
         self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=0)
         self.rnn = self.rnn(embed_size, hidden_size, num_layers,
                             bidirectional=bidirectional, batch_first=True,
                             dropout=dropout)
         self.device = device
+        self.dropout = nn.Dropout(p=0.1)
 
     def forward(self, x, x_lens):
         batch_size = x.size(0)
 
         embed = self.embedding(x)
+        embed = self.dropout(embed)
         embed = pack_padded_sequence(embed, x_lens.squeeze(dim=1).long(),
                                      batch_first=True)
         out, h_n = self.rnn(embed, self._init_state(batch_size))
@@ -59,19 +60,42 @@ class RNNEncoder(nn.Module):
         #     out = h_n
         # NOTE: h_n will always be of shape (num_layers*num_directions, batch, hidden_size)
         if self.num_directions == 2:
-            h_n = self._cat_hidden(h_n)
+            h_n = self._cat_hidden(h_n,batch_size)
         return out, h_n
 
     def _init_state(self, batch_size):
-        return torch.randn(self.num_layers * self.num_directions, batch_size,
+        if isinstance(self.rnn,nn.LSTM):
+            return(torch.zeros(self.num_layers * self.num_directions, batch_size,
+                           self.hidden_size).to(self.device), 
+                   torch.zeros(self.num_layers * self.num_directions, batch_size,
+                           self.hidden_size).to(self.device))
+        else:
+            return torch.zeros(self.num_layers * self.num_directions, batch_size,
                            self.hidden_size).to(self.device)
 
-    def _cat_hidden(self, h_n):
+    def _cat_hidden(self, h_n,batch_size):
         # if bidirectional then have to reshape hidden from
         # (num_layers*num_directions, batch, hidden_size) -> (num_layers, batch, hidden_size*num_directions)
         # currently just works for gru, and we will assume that we will just test for gru
-        h_n = torch.cat([h_n[0:h_n.size(0):2], h_n[1:h_n.size(0):2]], dim=2)
-        return h_n
+        if isinstance(self.rnn,nn.LSTM):
+            return (h_n[0].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1),
+                h_n[1].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1))
+        else:
+            return h_n.view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1)
+        #h_n = torch.cat([h_n[0:h_n.size(0):2], h_n[1:h_n.size(0):2]], dim=2)
+        #return h_n
+
+    def _init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.LSTM) or isinstance(m, nn.GRU) or isinstance(m, nn.RNN):
+                nn.init.xavier_normal_(m.weight)
+                nn.init.uniform_(m.bias)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+                nn.init.uniform_(m.bias)
 
 
 
