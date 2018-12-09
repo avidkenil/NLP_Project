@@ -54,7 +54,7 @@ def get_vocab(project_dir, data_dir, dataset, id2token_path, token2id_path, \
                                 is_source, unk_threshold, force)
         vocabulary, counts = zip(*top_counts)
         if is_source:
-            id2token = [PAD, UNK] + list(vocabulary)
+            id2token = [PAD, UNK, SOS, EOS] + list(vocabulary)
         else:
             id2token = [PAD, UNK, SOS, EOS] + list(vocabulary)
         id2token = dict(zip(range(len(id2token)), id2token))
@@ -107,7 +107,7 @@ def get_data_indices(project_dir, data_dir, kind, dataset, vocab_size, is_source
 
 def generate_dataloader(project_dir, data_dir, source_dataset, target_dataset, kind, \
                         source_vocab_size, target_vocab_size, batch_size, max_len_source, \
-                        max_len_target, unk_threshold=5, id2token=None, token2id=None, force=False):
+                        max_len_target, unk_threshold=5, id2token=None, token2id=None, force=False,collate_fn_to_use = nmt_collate_fn_train):
     '''
     kind (str): possible values - 'train' or 'dev' or 'test'
     '''
@@ -153,7 +153,7 @@ def generate_dataloader(project_dir, data_dir, source_dataset, target_dataset, k
     dataset = NMTDataset(data, max_len_source=max_len_source, max_len_target=max_len_target)
     shuffle = True if kind == 'train' else False
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, \
-                            collate_fn=partial(nmt_collate_fn, max_len_source=max_len_source, \
+                            collate_fn=partial(collate_fn_to_use, max_len_source=max_len_source, \
                             max_len_target=max_len_target))
 
     if kind == 'train':

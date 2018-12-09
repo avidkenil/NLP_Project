@@ -18,6 +18,7 @@ from seq2seq_nlp.models.encoder_networks import RNNEncoder
 from seq2seq_nlp.models.decoder_networks import RNNDecoder
 # from seq2seq_nlp.models.attention import VanillaAttention
 from seq2seq_nlp.utils import *
+from seq2seq_nlp.datasets import *
 
 
 args = get_args()
@@ -26,7 +27,7 @@ args = get_args()
 # Globals
 PROJECT_DIR = args.project_dir
 SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
-DATA_DIR,  PLOTS_DIR, LOGGING_DIR = args.data_dir, 'plots', 'logs'
+DATA_DIR,  PLOTS_DIR, LOGGING_DIR = args.data_dir, 'plots', 'logs-lstm'
 args.data_dir = DATA_DIR = os.path.join(DATA_DIR, '{}-{}'\
                                         .format(SOURCE_DATASET, TARGET_DATASET))
 CHECKPOINTS_DIR, CHECKPOINT_FILE = args.checkpoints_dir, args.load_ckpt
@@ -38,7 +39,7 @@ CLIP_PARAM = args.clip_param
 BEAM_SIZE = args.beam_size
 
 # Model hyperparameters
-ENCODER_TYPE = args.encoder_type        # Type of encoder
+ENCODER_TYPE, DECODER_TYPE = args.encoder_type, args.decoder_type        # Type of encoder
 NUM_DIRECTIONS = args.num_directions
 assert NUM_DIRECTIONS in [1, 2]
 BIDIRECTIONAL = True if NUM_DIRECTIONS == 2 else False
@@ -89,7 +90,11 @@ def main():
 
     val_loader = generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'dev', \
                                      SOURCE_VOCAB, TARGET_VOCAB, BATCH_SIZE, MAX_LEN_SOURCE, MAX_LEN_TARGET, \
-                                     UNK_THRESHOLD, id2token, token2id, args.force)
+                                     UNK_THRESHOLD, id2token, token2id, args.force, nmt_collate_fn_train)
+    #create data loader for greedy with batch size of 1 and give it the val collate function
+    val_loader_greedy = generate_dataloader(PROJECT_DIR, DATA_DIR, SOURCE_DATASET, TARGET_DATASET, 'dev', \
+                                     SOURCE_VOCAB, TARGET_VOCAB, 1, MAX_LEN_SOURCE, MAX_LEN_TARGET, \
+                                     UNK_THRESHOLD, id2token, token2id, args.force, nmt_collate_fn_val)
 
     start_epoch = 0 # Initialize starting epoch number (used later if checkpoint loaded)
     stop_epoch = N_EPOCHS+start_epoch # Store epoch upto which model is trained (used in case of KeyboardInterrupt)
@@ -107,6 +112,7 @@ def main():
     decoder = RNNDecoder(
             vocab_size=TARGET_VOCAB,
             embed_size=DECODER_EMB_SIZE,
+            kind=DECODER_TYPE,
             encoder_directions=NUM_DIRECTIONS,
             encoder_hidden_size=encoder.hidden_size,
             num_layers=DECODER_NUM_LAYERS,
@@ -117,6 +123,8 @@ def main():
             device=DEVICE)
     logging.info('Done.')
 
+    logging.info(encoder)
+    logging.info(decoder)
     # Define criteria and optimizer
     # Ignore padding indexes
     criterion_train = nn.NLLLoss(reduction='sum', ignore_index=0)
@@ -153,7 +161,7 @@ def main():
     encoder = encoder.to(DEVICE)
     decoder = decoder.to(DEVICE)
 
-    early_stopping = EarlyStopping(mode='maximize', min_delta=0, patience=10)
+    early_stopping = EarlyStopping(mode='maximize', min_delta=0, patience=100)
     best_epoch = start_epoch+1
 
     for epoch in range(start_epoch+1, N_EPOCHS+start_epoch+1):
@@ -175,7 +183,7 @@ def main():
             val_loss, val_greedy_bleu = test(
                 encoder=encoder,
                 decoder=decoder,
-                dataloader=train_loader,
+                dataloader=val_loader,
                 criterion=criterion_test,
                 epoch=epoch,
                 max_len_target=MAX_LEN_TARGET,
@@ -185,19 +193,19 @@ def main():
                 joint_hidden_ec = JOINT_HIDDEN_EC
             )
 
-            val_beam_bleu = test_beam_search(
-                encoder=encoder,
-                decoder=decoder,
-                dataloader=val_loader,
-                criterion=criterion_test,
-                epoch=epoch,
-                max_len_target=MAX_LEN_TARGET,
-                id2token=id2token['target'],
-                token2id=token2id['target'],
-                device=DEVICE,
-                beam_size=BEAM_SIZE
-            )
-
+            # val_beam_bleu = test_beam_search(
+            #     encoder=encoder,
+            #     decoder=decoder,
+            #     dataloader=val_loader,
+            #     criterion=criterion_test,
+            #     epoch=epoch,
+            #     max_len_target=MAX_LEN_TARGET,
+            #     id2token=id2token['target'],
+            #     token2id=token2id['target'],
+            #     device=DEVICE,
+            #     beam_size=BEAM_SIZE
+            # )
+            val_beam_bleu = 0
 
 
             train_loss_history.extend(train_losses)

@@ -48,20 +48,22 @@ class RNNEncoder(nn.Module):
 
     def forward(self, x, x_lens):
         batch_size = x.size(0)
-
+        sorted_idx = sorted(range(len(x_lens)), key=lambda x: -x_lens[x])
+        orig_idx = sorted(range(len(x_lens)), key=lambda x: sorted_idx[x])
         embed = self.embedding(x)
         embed = self.dropout(embed)
-        embed = pack_padded_sequence(embed, x_lens.squeeze(dim=1).long(),
+        embed = embed[sorted_idx]
+        sorted_lens = x_lens[sorted_idx]
+        embed = pack_padded_sequence(embed, sorted_lens.squeeze(dim=1).long(),
                                      batch_first=True)
         out, h_n = self.rnn(embed, self._init_state(batch_size))
-        out, _ = pad_packed_sequence(out, batch_first=True,
-                                     total_length=x.size(1))
+        out, _ = pad_packed_sequence(out, batch_first=True,padding_value=0)
         # if self.return_type == 'last_time_step':
         #     out = h_n
         # NOTE: h_n will always be of shape (num_layers*num_directions, batch, hidden_size)
         if self.num_directions == 2:
-            h_n = self._cat_hidden(h_n,batch_size)
-        return out, h_n
+            h_n = self._cat_hidden(h_n,batch_size,orig_idx)
+        return out[orig_idx], h_n
 
     def _init_state(self, batch_size):
         if isinstance(self.rnn,nn.LSTM):
@@ -73,15 +75,15 @@ class RNNEncoder(nn.Module):
             return torch.zeros(self.num_layers * self.num_directions, batch_size,
                            self.hidden_size).to(self.device)
 
-    def _cat_hidden(self, h_n,batch_size):
+    def _cat_hidden(self, h_n,batch_size,orig_idx):
         # if bidirectional then have to reshape hidden from
         # (num_layers*num_directions, batch, hidden_size) -> (num_layers, batch, hidden_size*num_directions)
         # currently just works for gru, and we will assume that we will just test for gru
         if isinstance(self.rnn,nn.LSTM):
-            return (h_n[0].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1),
-                h_n[1].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1))
+            return (h_n[0].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1)[:,orig_idx,:],
+                h_n[1].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1)[:,orig_idx,:])
         else:
-            return h_n.view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1)
+            return h_n.view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1)[:,orig_idx,:]
         #h_n = torch.cat([h_n[0:h_n.size(0):2], h_n[1:h_n.size(0):2]], dim=2)
         #return h_n
 

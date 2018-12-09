@@ -43,6 +43,8 @@ def get_args():
                         type=float, default=1e-3)
     parser.add_argument('--encoder-type', metavar='ENCODER_TYPE', dest='encoder_type', help='type of encoder model '\
                         '(gru | lstm), default="gru"', required=False, default='gru')
+    parser.add_argument('--decoder-type', metavar='DECODER_TYPE', dest='decoder_type', help='type of decoder model '\
+                        '(gru | lstm), default="gru"', required=False, default='gru')
     parser.add_argument('--num-directions', metavar='NUM_DIRECTIONS', dest='num_directions', help='number of directions '\
                         'in encoder, default=2', required=False, type=int, default=2)
     parser.add_argument('--encoder-num-layers', metavar='ENCODER_NUM_LAYERS', dest='encoder_num_layers', help='number of '\
@@ -56,9 +58,9 @@ def get_args():
     parser.add_argument('--encoder-hid-size', metavar='ENCODER_HID_SIZE', dest='encoder_hid_size', help='hidden size '\
                         'of encoder, default=256', required=False, type=int, default=256)
     parser.add_argument('--encoder-dropout', metavar='ENCODER_DROPOUT', dest='encoder_dropout', \
-                        help='dropout rate in encoder, default=0.', required=False, type=float, default=0.)
+                        help='dropout rate in encoder, default=0.2', required=False, type=float, default=0.2)
     parser.add_argument('--decoder-dropout', metavar='DECODER_DROPOUT', dest='decoder_dropout', \
-                        help='dropout rate in decoder FC layer, default=0.', required=False, type=float, default=0.)
+                        help='dropout rate in decoder FC layer, default=0.1', required=False, type=float, default=0.1)
     parser.add_argument('--clip-param', metavar='CLIP_PARAM', dest='clip_param', \
                         help='clip parameter value for exploding gradients', required=False, type=float, default=5.0)
     parser.add_argument('--beam-size', metavar='BEAM_SIZE', dest='beam_size', \
