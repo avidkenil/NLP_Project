@@ -20,6 +20,11 @@ import matplotlib.pyplot as plt
 
 from sacrebleu import corpus_bleu
 
+PAD, PAD_IDX = '<pad>', 0
+UNK, UNK_IDX = '<unk>', 1
+SOS, SOS_IDX = '<sos>', 2
+EOS, EOS_IDX = '<eos>', 3
+
 # Custom loss function with masked outputs till the sequence length
 # taken from https://github.com/spro/practical-pytorch/tree/master/seq2seq-translation
 # Made required changes for PyTorch 0.4 and integrating with our code.
@@ -88,15 +93,15 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
                 decoder_hidden_step = encoder_hidden
 
 
-        input_seq = target[:,0]
-
+        #input_seq = target[:,0]
+        input_seq = torch.tensor([SOS_IDX]*source.size(0)).to(device)
         loss = 0.
         #use teacher forcing is applied to an entire batch rather than over time steps
         #import pdb;pdb.set_trace()
         use_teacher_forcing = np.random.rand() < teacher_forcing_prob
 
         max_batch_target_len = target_lens.data.max().item()
-        for step in range(1,max_batch_target_len):
+        for step in range(max_batch_target_len):
             if joint_hidden_ec:
                 decoder_output_step, decoder_hidden_step, attn_weights_step = \
                 decoder(input_seq, decoder_hidden_step, source_lens,
@@ -114,7 +119,7 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
 
         # Take per-element average, subtracting the sos tokens for accurate computation
 
-        loss /= (target_lens.data.sum().item() - source.size(0))
+        loss /= (target_lens.data.sum().item())
 
         optimizer.zero_grad()
         loss.backward()
@@ -468,7 +473,7 @@ def load_txt(path, f=lambda x: x):
        function <f> to each individual element
     '''
     with open(path, 'r') as fin:
-        data = [f(line) for line in fin if line.strip()]
+        data = [f(line) for line in fin]
     return data
 
 def load_raw_data(path):
