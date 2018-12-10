@@ -27,7 +27,7 @@ args = get_args()
 # Globals
 PROJECT_DIR = args.project_dir
 SOURCE_DATASET, TARGET_DATASET = args.source_dataset, args.target_dataset
-DATA_DIR,  PLOTS_DIR, LOGGING_DIR = args.data_dir, 'plots', 'logs-lstm'
+DATA_DIR,  PLOTS_DIR, LOGGING_DIR = args.data_dir, 'plots', 'logs-gru'
 args.data_dir = DATA_DIR = os.path.join(DATA_DIR, '{}-{}'\
                                         .format(SOURCE_DATASET, TARGET_DATASET))
 CHECKPOINTS_DIR, CHECKPOINT_FILE = args.checkpoints_dir, args.load_ckpt
@@ -52,6 +52,7 @@ args.decoder_hid_size = DECODER_HID_SIZE = ENCODER_HID_SIZE*NUM_DIRECTIONS
 ENCODER_DROPOUT, DECODER_DROPOUT = args.encoder_dropout, args.decoder_dropout
 JOINT_HIDDEN_EC = False
 TEACHER_FORCING_PROB = args.teacher_forcing_prob
+USE_ATTN = args.use_attn
 
 BATCH_SIZE = args.batch_size    # input batch size for training
 N_EPOCHS = args.epochs          # number of epochs to train
@@ -108,7 +109,6 @@ def main():
                 bidirectional=BIDIRECTIONAL,
                 dropout=ENCODER_DROPOUT,
                 device=DEVICE)
-
     decoder = RNNDecoder(
             vocab_size=TARGET_VOCAB,
             embed_size=DECODER_EMB_SIZE,
@@ -117,7 +117,7 @@ def main():
             encoder_hidden_size=encoder.hidden_size,
             num_layers=DECODER_NUM_LAYERS,
             fc_hidden_size=DECODER_HID_SIZE,
-            attn=None,
+            attn=USE_ATTN,
             dropout=DECODER_DROPOUT,
             joint_hidden_ec = JOINT_HIDDEN_EC,
             device=DEVICE)
@@ -183,7 +183,7 @@ def main():
             val_loss, val_greedy_bleu = test(
                 encoder=encoder,
                 decoder=decoder,
-                dataloader=val_loader,
+                dataloader=val_loader_greedy,
                 criterion=criterion_test,
                 epoch=epoch,
                 max_len_target=MAX_LEN_TARGET,
@@ -206,6 +206,7 @@ def main():
             #     beam_size=BEAM_SIZE
             # )
             val_beam_bleu = 0
+            
 
 
             train_loss_history.extend(train_losses)

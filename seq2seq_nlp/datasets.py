@@ -27,11 +27,15 @@ class NMTDataset(Dataset):
             self.source.append(data['source'][i])
             self.target.append(data['target'][i])
 
-
         
         self.source_lens = [len(data['source'][i]) for i in range(len(data['source']))]
         self.target_lens = [len(data['target'][i]) for i in range(len(data['target']))]
         
+        # self.source = self.source[:100]
+        # self.source_lens = self.source_lens[:100]
+        # self.target = self.target[:100]
+        # self.target_lens = self.target_lens[:100]
+
         assert len(self.source) == len(self.target)
         #self.source, self.target = [], []
         #self.source_lens, self.target_lens = [], []
@@ -110,8 +114,8 @@ def nmt_collate_fn_train(batch, max_len_source, max_len_target):
 
 def nmt_collate_fn_val(batch, max_len_source, max_len_target):
     #for this the batch size will be 1 so we don't need to worry about it
-    return [torch.numpy(np.array(batch[0][0])).unsqueeze(0).long(), torch.numpy(np.array(batch[0][1])).unsqueeze(0).long(),
-            torch.numpy(np.array(batch[0][2])).unsqueeze(0).long(), torch.numpy(np.array(batch[0][3])).unsqueeze(0).long()]
+    return [torch.from_numpy(np.array(batch[0][0])).unsqueeze(0).long(), torch.from_numpy(np.array(batch[0][1])).unsqueeze(0).unsqueeze(1).long(),
+            torch.from_numpy(np.array(batch[0][2])).unsqueeze(0).long(), torch.from_numpy(np.array(batch[0][3])).unsqueeze(0).unsqueeze(1).long()]
 
 
 
