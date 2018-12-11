@@ -7,6 +7,7 @@ import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import matplotlib
 matplotlib.use('Agg')
@@ -14,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from seq2seq_nlp.arguments import get_args
 from seq2seq_nlp.preprocessing import generate_dataloader
-from seq2seq_nlp.models.encoder_networks import RNNEncoder
+from seq2seq_nlp.models.encoder_networks import RNNEncoder, CNNEncoder
 from seq2seq_nlp.models.decoder_networks import RNNDecoder
 # from seq2seq_nlp.models.attention import VanillaAttention
 from seq2seq_nlp.utils import *
@@ -42,7 +43,11 @@ BEAM_SIZE = args.beam_size
 ENCODER_TYPE, DECODER_TYPE = args.encoder_type, args.decoder_type        # Type of encoder
 NUM_DIRECTIONS = args.num_directions
 assert NUM_DIRECTIONS in [1, 2]
-BIDIRECTIONAL = True if NUM_DIRECTIONS == 2 else False
+if ENCODER_TYPE == 'cnn':
+    BIDIRECTIONAL = False
+    NUM_DIRECTIONS = 2
+else:
+    BIDIRECTIONAL = True if NUM_DIRECTIONS == 2 else False
 ENCODER_NUM_LAYERS, DECODER_NUM_LAYERS = args.encoder_num_layers, args.decoder_num_layers
 # Make sure encoder doesn't have lesser layers than decoder
 assert ENCODER_NUM_LAYERS >= DECODER_NUM_LAYERS
@@ -101,14 +106,23 @@ def main():
     stop_epoch = N_EPOCHS+start_epoch # Store epoch upto which model is trained (used in case of KeyboardInterrupt)
 
     logging.info('Creating models...')
-    encoder = RNNEncoder(kind=ENCODER_TYPE,
-                vocab_size=SOURCE_VOCAB,
-                embed_size=ENCODER_EMB_SIZE,
-                hidden_size=ENCODER_HID_SIZE,
-                num_layers=ENCODER_NUM_LAYERS,
-                bidirectional=BIDIRECTIONAL,
-                dropout=ENCODER_DROPOUT,
-                device=DEVICE)
+    if ENCODER_TYPE == 'cnn':
+        encoder = CNNEncoder(vocab_size = SOURCE_VOCAB, 
+            embed_size = ENCODER_EMB_SIZE, 
+            hidden_size = ENCODER_HID_SIZE, 
+            kernel_sizes = [3,5], 
+            num_layers = ENCODER_NUM_LAYERS, \
+            dropout=ENCODER_DROPOUT, 
+            dropout_type='1d')
+    else:
+        encoder = RNNEncoder(kind=ENCODER_TYPE,
+                    vocab_size=SOURCE_VOCAB,
+                    embed_size=ENCODER_EMB_SIZE,
+                    hidden_size=ENCODER_HID_SIZE,
+                    num_layers=ENCODER_NUM_LAYERS,
+                    bidirectional=BIDIRECTIONAL,
+                    dropout=ENCODER_DROPOUT,
+                    device=DEVICE)
     decoder = RNNDecoder(
             vocab_size=TARGET_VOCAB,
             embed_size=DECODER_EMB_SIZE,
@@ -129,8 +143,9 @@ def main():
     # Ignore padding indexes
     criterion_train = nn.NLLLoss(reduction='sum', ignore_index=0)
     criterion_test = nn.NLLLoss(reduction='sum', ignore_index=0)
+    #optimizer = optim.SGD(list(encoder.parameters()) + list(decoder.parameters()) , lr=0.25,nesterov=True, momentum = 0.99)
     optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=LR)
-
+    #scheduler = ReduceLROnPlateau(optimizer, min_lr=1e-4,  patience=0)
     train_loss_history, train_bleu_history = [], []
     val_loss_history, val_greedy_bleu_history, val_beam_bleu_history = [], [], []
 
@@ -161,9 +176,14 @@ def main():
     encoder = encoder.to(DEVICE)
     decoder = decoder.to(DEVICE)
 
-    early_stopping = EarlyStopping(mode='maximize', min_delta=0, patience=100)
+    early_stopping = EarlyStopping(mode='maximize', min_delta=0, patience=1500)
     best_epoch = start_epoch+1
-
+    if ENCODER_TYPE == 'cnn':
+        train = train_cnn
+        test = test_cnn
+    else:
+        train = train_rnn
+        test = test_rnn
     for epoch in range(start_epoch+1, N_EPOCHS+start_epoch+1):
         try:
             train_losses = train(
@@ -206,7 +226,7 @@ def main():
             #     beam_size=BEAM_SIZE
             # )
             val_beam_bleu = 0
-            
+            #scheduler.step(np.sum(train_losses))
 
 
             train_loss_history.extend(train_losses)
@@ -217,21 +237,21 @@ def main():
             logging.info('TRAIN Epoch: {}\tAverage loss: {:.4f}\n'.format(epoch, np.sum(train_losses)))
             logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, greedy BLEU: {:.4f}, beam BLEU: {:.4f}\n'.format(epoch, val_loss, val_greedy_bleu, val_beam_bleu))
 
-            if early_stopping.is_better(val_loss):
-                logging.info('Saving current best model checkpoint...')
-                save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
-                                train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch, args, \
-                                PROJECT_DIR, CHECKPOINTS_DIR, PARALLEL or NGPU)
-                logging.info('Done.')
-                logging.info('Removing previous best model checkpoint...')
-                remove_checkpoint(args, PROJECT_DIR, CHECKPOINTS_DIR, best_epoch)
-                logging.info('Done.')
-                best_epoch = epoch
+            # if early_stopping.is_better(val_greedy_bleu):
+            #     logging.info('Saving current best model checkpoint...')
+            #     save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
+            #                     train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch, args, \
+            #                     PROJECT_DIR, CHECKPOINTS_DIR, PARALLEL or NGPU)
+            #     logging.info('Done.')
+            #     logging.info('Removing previous best model checkpoint...')
+            #     remove_checkpoint(args, PROJECT_DIR, CHECKPOINTS_DIR, best_epoch)
+            #     logging.info('Done.')
+            #     best_epoch = epoch
 
-            if early_stopping.stop(val_beam_bleu):
-                logging.info('Stopping early after {} epochs.'.format(epoch))
-                stop_epoch = epoch
-                break
+            # if early_stopping.stop(val_beam_bleu):
+            #     logging.info('Stopping early after {} epochs.'.format(epoch))
+            #     stop_epoch = epoch
+            #     break
         except KeyboardInterrupt:
             logging.info('Keyboard Interrupted!')
             stop_epoch = epoch - 1

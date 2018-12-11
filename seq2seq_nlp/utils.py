@@ -74,7 +74,85 @@ def masked_cross_entropy(logits, target, length, device):
     loss = losses.sum() / length.float().sum()
     return loss
 
-def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_target, clip_param, device,teacher_forcing_prob,joint_hidden_ec):
+
+#different training loop for the case where we are using CNN encoder, assuming we will be applying this without attention
+def train_cnn(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_target, clip_param, device,teacher_forcing_prob,joint_hidden_ec):
+    loss_hist = []
+    for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
+        source, source_lens  = source.to(device), source_lens.to(device)
+        target, target_lens = target.to(device), target_lens.to(device)
+        encoder.train()
+        decoder.train()
+
+        encoder_output, encoder_hidden = encoder(source, source_lens)
+        # # Doing complete teacher forcing first and then will add the probability based teacher forcing
+        # if joint_hidden_ec:
+        #     decoder_hidden_step = decoder._init_state(source.size(0))
+        # else:
+        #     if decoder.num_layers == 1:
+        #         decoder_hidden_step = encoder_hidden[-1].unsqueeze(0)
+        #     else:
+        #         decoder_hidden_step = encoder_hidden
+        decoder_hidden_step = encoder_hidden.unsqueeze(0)
+
+        #input_seq = target[:,0]
+        input_seq = torch.tensor([SOS_IDX]*source.size(0)).to(device)
+        loss = 0.
+        #use teacher forcing is applied to an entire batch rather than over time steps
+        #import pdb;pdb.set_trace()
+        use_teacher_forcing = np.random.rand() < teacher_forcing_prob
+
+        max_batch_target_len = target_lens.data.max().item()
+        # if decoder.attn :
+        #     prev_context_vec = torch.zeros((source.size(0),decoder.hidden_size)).to(device)
+        # else:
+        #     prev_context_vec = None
+        for step in range(max_batch_target_len):
+            # if joint_hidden_ec:
+            #     decoder_output_step, decoder_hidden_step, attn_weights_step = \
+            #     decoder(input_seq, decoder_hidden_step, source_lens,
+            #             encoder_output,encoder_hidden)
+            # if decoder.attn:
+            #     decoder_output_step, decoder_hidden_step
+            # else:
+            decoder_output_step, decoder_hidden_step, _, _ = \
+                    decoder(input_seq, decoder_hidden_step)
+            #input_seq = target[:, step]
+            if use_teacher_forcing:
+                input_seq = target[:, step] # Change this line to change what to give as the next input to the decoder
+            else:
+                input_seq = decoder_output_step.topk(1,dim=1)[1].squeeze(1).detach()
+            loss += criterion(decoder_output_step, target[:,step])
+
+        # Take per-element average, subtracting the sos tokens for accurate computation
+
+        loss /= (target_lens.data.sum().item())
+
+        optimizer.zero_grad()
+        loss.backward()
+
+        nn.utils.clip_grad_norm_(encoder.parameters(), clip_param)
+        nn.utils.clip_grad_norm_(decoder.parameters(), clip_param)
+
+        optimizer.step()
+
+        # Accurately compute loss, because of different batch size
+        loss_train = loss.item() * len(source)/ len(dataloader.dataset)
+        loss_hist.append(loss_train)
+
+        # Print 25 times in a batch; if dataset too small print every time (to avoid division by 0)
+        if (batch_idx+1) % max(1, (len(dataloader.dataset)//(25*source.shape[0]))) == 0:
+            logging.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, (batch_idx+1) * source.shape[0], len(dataloader.dataset),
+                100. * (batch_idx+1) / len(dataloader), loss.item()))
+
+    optimizer.zero_grad()
+    return loss_hist
+
+
+
+
+def train_rnn(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_target, clip_param, device,teacher_forcing_prob,joint_hidden_ec):
     loss_hist = []
     for batch_idx, (source, source_lens, target, target_lens) in enumerate(dataloader):
         source, source_lens  = source.to(device), source_lens.to(device)
@@ -172,8 +250,63 @@ def train(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len_tar
     return loss_hist
 
 
+
+def test_cnn(encoder, decoder, dataloader, criterion, epoch, max_len_target, id2token, token2id, device,joint_hidden_ec):
+    loss_test = 0.
+    encoder.eval()
+    decoder.eval()
+    all_output_sentences, all_target_sentences = [], []
+    # note that the batch size is just 1 here
+    with torch.no_grad():
+        for batch_idx, (source, source_len, target, target_len) in enumerate(dataloader):
+            source, source_len  = source.to(device), source_len.to(device)
+            target, target_len = target.to(device), target_len.to(device)
+            # Init the decoder outputs with zeros and then fill them up with the values
+            encoder_output, encoder_hidden = encoder(source, source_len)
+            # Doing complete teacher forcing first and then will add the probability based teacher forcing
+            
+            decoder_hidden_step = encoder_hidden.unsqueeze(0)
+            max_len_target = 2*source_len
+
+            loss = 0.
+
+            input_seq = torch.tensor([SOS_IDX]*source.size(0)).to(device)
+
+            decoder_outputs = np.zeros((source.size(0), max_len_target))
+            
+            for step in range(max_len_target):
+                decoder_output_step, decoder_hidden_step, _, _= decoder(input_seq, decoder_hidden_step)
+
+                input_seq = decoder_output_step.topk(1, dim=1)[1].squeeze(1).detach()
+                if step < target_len:
+                    loss += criterion(decoder_output_step, target[:,step])
+                current_output = input_seq.cpu().numpy()
+                if current_output == token2id[EOS]:
+                    break
+                decoder_outputs[:,step] = current_output
+
+            target_sentences, output_sentences = get_all_sentences(target.cpu().numpy(), decoder_outputs, \
+                                                                   id2token, token2id)
+
+            all_output_sentences.extend(output_sentences)
+            all_target_sentences.extend(target_sentences)
+            loss /= (target_len.data.sum().item()) # Take per-element average
+
+            # Accurately compute loss, because of different batch size
+            loss_test += loss.item() *len(source)/ len(dataloader.dataset)
+
+    rand_idx = np.random.randint(len(dataloader.dataset))
+    logging.info('VAL   Epoch: {}\ttarget: {}\n'.format(epoch, all_target_sentences[rand_idx]))
+    logging.info('VAL   Epoch: {}\tgreedy output: {}\n'.format(epoch, all_output_sentences[rand_idx]))
+
+    bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences],lowercase=True).score
+
+    return loss_test,bleu_score
+
+
+
 #works on batch size of 1 for the val loader
-def test(encoder, decoder, dataloader, criterion, epoch, max_len_target, id2token, token2id, device,joint_hidden_ec):
+def test_rnn(encoder, decoder, dataloader, criterion, epoch, max_len_target, id2token, token2id, device,joint_hidden_ec):
     loss_test = 0.
     encoder.eval()
     decoder.eval()

@@ -28,7 +28,7 @@ def get_args():
     parser.add_argument('--max-len-target', metavar='MAX_LEN_TARGET', dest='max_len_target', \
                         help='max sentence length of target', required=False, type=int, default=100)
     parser.add_argument('--unk-threshold', metavar='UNK_THRESHOLD', dest='unk_threshold', help='threshold '\
-                        'of count below which words are to be treated as UNK', required=False, type=int, default=5)
+                        'of count below which words are to be treated as UNK. Please use force if you change this.', required=False, type=int, default=5)
     parser.add_argument('--batch-size', metavar='BATCH_SIZE', dest='batch_size', help='batch size', \
                         required=False, type=int, default=32)
     parser.add_argument('--epochs', metavar='EPOCHS', dest='epochs', help='number of epochs', \
@@ -42,7 +42,7 @@ def get_args():
     parser.add_argument('--lr', metavar='LR', dest='lr', help='learning rate', required=False, \
                         type=float, default=1e-3)
     parser.add_argument('--encoder-type', metavar='ENCODER_TYPE', dest='encoder_type', help='type of encoder model '\
-                        '(gru | lstm), default="gru"', required=False, default='gru')
+                        '(gru | lstm | rnn | cnn), default="gru"', required=False, default='gru')
     parser.add_argument('--decoder-type', metavar='DECODER_TYPE', dest='decoder_type', help='type of decoder model '\
                         '(gru | lstm), default="gru"', required=False, default='gru')
     parser.add_argument('--num-directions', metavar='NUM_DIRECTIONS', dest='num_directions', help='number of directions '\

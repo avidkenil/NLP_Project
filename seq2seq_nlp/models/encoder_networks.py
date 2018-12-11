@@ -113,20 +113,31 @@ class CNNEncoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=0)
 
-        dropout = nn.Dropout if dropout_type == '1d' else nn.Dropout2d
+        self.dropout = nn.Dropout if dropout_type == '1d' else nn.Dropout2d
         # TODO: implement dropout2d
-        dropout = nn.Dropout
+        self.dropout = nn.Dropout
         cnn_sequences = []
-        for kernel_size in kernel_sizes:
+        kernel_sizes = [[3,5,3,5],[5,3,5,3]]
+        for kernels in kernel_sizes:
             cnn_sequence = []
-            for layer in range(num_layers):
-                in_channels = embed_size if layer == 0 else hidden_size
+            for ix,kernel in enumerate(kernels):
+                in_channels = embed_size if ix == 0 else hidden_size
                 cnn_sequence.extend(
-                    [nn.Conv1d(in_channels, hidden_size, kernel_size,
-                               padding=kernel_size // 2),
+                    [nn.Conv1d(in_channels, hidden_size, kernel,
+                               padding=kernel // 2),
                      nn.ReLU(),
-                     dropout(dropout)])
+                     self.dropout(dropout)])
             cnn_sequences.append(nn.Sequential(*cnn_sequence))
+        # for kernel_size in kernel_sizes:
+        #     cnn_sequence = []
+        #     for layer in range(num_layers):
+        #         in_channels = embed_size if layer == 0 else hidden_size
+        #         cnn_sequence.extend(
+        #             [nn.Conv1d(in_channels, hidden_size, kernel_size,
+        #                        padding=kernel_size // 2),
+        #              nn.ReLU(),
+        #              self.dropout(dropout)])
+        #     cnn_sequences.append(nn.Sequential(*cnn_sequence))
 
         self.cnn_sequences = nn.ModuleList(cnn_sequences)
 
@@ -135,11 +146,11 @@ class CNNEncoder(nn.Module):
         outputs = []
         for ix, cnn in enumerate(self.cnn_sequences):
             out = cnn(embed).transpose(1,2)  # (B, T, H)
-            to_add = self.num_layers if self.kernel_sizes[ix] % 2 == 0 else 0
+            #to_add = self.num_layers if self.kernel_sizes[ix] % 2 == 0 else 0
+            to_add = 0
             assert(out.size() == (x.size(0), x.size(1) +
                                   to_add, self.hidden_size))
             outputs.append(out)
-
         if self.num_layers == 1:
             # max-pooling
             for ix, output in enumerate(outputs):
@@ -147,9 +158,11 @@ class CNNEncoder(nn.Module):
         else:
             # avg-pooling
             for ix, output in enumerate(outputs):
-                outputs[ix] = output.sum(dim=1) / x_lens  # (B, H)
+                outputs[ix] = output.sum(dim=1) / x_lens.float()  # (B, H)
 
         out = torch.cat(outputs, dim=1)
         assert(out.size() == (x.size(0),
                               len(self.kernel_sizes) * self.hidden_size))
-        return out
+        return None, out
+
+        #return None , out.view(x.size(0),len(self.kernel_sizes),self.hidden_size).transpose(0,1).contiguous()
