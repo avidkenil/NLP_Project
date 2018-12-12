@@ -68,7 +68,7 @@ class RNNEncoder(nn.Module):
     def _init_state(self, batch_size):
         if isinstance(self.rnn,nn.LSTM):
             return(torch.zeros(self.num_layers * self.num_directions, batch_size,
-                           self.hidden_size).to(self.device), 
+                           self.hidden_size).to(self.device),
                    torch.zeros(self.num_layers * self.num_directions, batch_size,
                            self.hidden_size).to(self.device))
         else:
@@ -107,7 +107,6 @@ class CNNEncoder(nn.Module):
                  dropout=0.5, dropout_type='1d'):
         super().__init__()
 
-        self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.kernel_sizes = kernel_sizes
 
@@ -117,27 +116,26 @@ class CNNEncoder(nn.Module):
         # TODO: implement dropout2d
         self.dropout = nn.Dropout
         cnn_sequences = []
-        kernel_sizes = [[3,5,3,5],[5,3,5,3]]
-        for kernels in kernel_sizes:
-            cnn_sequence = []
-            for ix,kernel in enumerate(kernels):
-                in_channels = embed_size if ix == 0 else hidden_size
-                cnn_sequence.extend(
-                    [nn.Conv1d(in_channels, hidden_size, kernel,
-                               padding=kernel // 2),
-                     nn.ReLU(),
-                     self.dropout(dropout)])
-            cnn_sequences.append(nn.Sequential(*cnn_sequence))
-        # for kernel_size in kernel_sizes:
+        # for kernels in kernel_sizes:
         #     cnn_sequence = []
-        #     for layer in range(num_layers):
-        #         in_channels = embed_size if layer == 0 else hidden_size
+        #     for ix,kernel in enumerate(kernels):
+        #         in_channels = embed_size if ix == 0 else hidden_size
         #         cnn_sequence.extend(
-        #             [nn.Conv1d(in_channels, hidden_size, kernel_size,
-        #                        padding=kernel_size // 2),
+        #             [nn.Conv1d(in_channels, hidden_size, kernel,
+        #                        padding=kernel // 2),
         #              nn.ReLU(),
         #              self.dropout(dropout)])
         #     cnn_sequences.append(nn.Sequential(*cnn_sequence))
+        for kernel_size in kernel_sizes:
+            cnn_sequence = []
+            for layer in range(num_layers):
+                in_channels = embed_size if layer == 0 else hidden_size
+                cnn_sequence.extend(
+                    [nn.Conv1d(in_channels, hidden_size, kernel_size,
+                               padding=kernel_size // 2),
+                     nn.ReLU(),
+                     self.dropout(dropout)])
+            cnn_sequences.append(nn.Sequential(*cnn_sequence))
 
         self.cnn_sequences = nn.ModuleList(cnn_sequences)
 
@@ -146,23 +144,13 @@ class CNNEncoder(nn.Module):
         outputs = []
         for ix, cnn in enumerate(self.cnn_sequences):
             out = cnn(embed).transpose(1,2)  # (B, T, H)
-            #to_add = self.num_layers if self.kernel_sizes[ix] % 2 == 0 else 0
-            to_add = 0
-            assert(out.size() == (x.size(0), x.size(1) +
-                                  to_add, self.hidden_size))
             outputs.append(out)
-        if self.num_layers == 1:
-            # max-pooling
-            for ix, output in enumerate(outputs):
-                outputs[ix] = output.max(dim=1)[0]
-        else:
-            # avg-pooling
-            for ix, output in enumerate(outputs):
-                outputs[ix] = output.sum(dim=1) / x_lens.float()  # (B, H)
+
+        # max-pooling
+        for ix, output in enumerate(outputs):
+            outputs[ix] = output.max(dim=1)[0]
 
         out = torch.cat(outputs, dim=1)
-        assert(out.size() == (x.size(0),
-                              len(self.kernel_sizes) * self.hidden_size))
         return None, out
 
         #return None , out.view(x.size(0),len(self.kernel_sizes),self.hidden_size).transpose(0,1).contiguous()

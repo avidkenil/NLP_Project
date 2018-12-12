@@ -116,7 +116,7 @@ def train_cnn(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len
         #         decoder_hidden_step = encoder_hidden[-1].unsqueeze(0)
         #     else:
         #         decoder_hidden_step = encoder_hidden
-        decoder_hidden_step = encoder_hidden.unsqueeze(0)
+        decoder_hidden_step = get_decoder_hidden_from_cnn(decoder.num_layers, encoder_hidden)
 
         input_seq = torch.tensor([SOS_IDX]*source.size(0)).to(device)
         loss = 0.
@@ -128,6 +128,7 @@ def train_cnn(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len
         #     prev_context_vec = torch.zeros((source.size(0), decoder.hidden_size)).to(device)
         # else:
         #     prev_context_vec = None
+
         for step in range(max_batch_target_len):
             # if joint_hidden_ec:
             #     decoder_output_step, decoder_hidden_step, attn_weights_step = \
@@ -247,7 +248,8 @@ def test_cnn(encoder, decoder, dataloader, criterion, epoch, max_len_target, \
             encoder_output, encoder_hidden = encoder(source, source_len)
             # Doing complete teacher forcing first and then will add the probability based teacher forcing
 
-            decoder_hidden_step = encoder_hidden.unsqueeze(0)
+            decoder_hidden_step = get_decoder_hidden_from_cnn(decoder.num_layers, encoder_hidden)
+
             max_len_target = 2*source_len
 
             loss = 0.
@@ -446,6 +448,12 @@ def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
 
     bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences]).score
     return bleu_score
+
+def get_decoder_hidden_from_cnn(decoder_num_layers, encoder_hidden):
+    decoder_hidden_step = []
+    for layer in range(decoder_num_layers):
+        decoder_hidden_step.append(encoder_hidden)
+    return torch.stack(decoder_hidden_step, dim=0)
 
 def convert_idxs_to_sentence(idxs, id2token, token2id):
     tokens = [id2token[idxs[i]] for i in range(len(idxs)) if idxs[i] not in \

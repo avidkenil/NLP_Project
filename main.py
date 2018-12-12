@@ -45,7 +45,6 @@ NUM_DIRECTIONS = args.num_directions
 assert NUM_DIRECTIONS in [1, 2]
 if ENCODER_TYPE == 'cnn':
     BIDIRECTIONAL = False
-    NUM_DIRECTIONS = 2
 else:
     BIDIRECTIONAL = True if NUM_DIRECTIONS == 2 else False
 ENCODER_NUM_LAYERS, DECODER_NUM_LAYERS = args.encoder_num_layers, args.decoder_num_layers
@@ -107,10 +106,11 @@ def main():
 
     logging.info('Creating models...')
     if ENCODER_TYPE == 'cnn':
+        kernel_sizes = [2,3,4,5]
         encoder = CNNEncoder(vocab_size = SOURCE_VOCAB,
             embed_size = ENCODER_EMB_SIZE,
             hidden_size = ENCODER_HID_SIZE,
-            kernel_sizes = [3,5],
+            kernel_sizes = kernel_sizes,
             num_layers = ENCODER_NUM_LAYERS, \
             dropout=ENCODER_DROPOUT,
             dropout_type='1d')
@@ -123,12 +123,18 @@ def main():
                     bidirectional=BIDIRECTIONAL,
                     dropout=ENCODER_DROPOUT,
                     device=DEVICE)
+
+    encoder_hidden_size = encoder.hidden_size
+    if ENCODER_TYPE == 'cnn':
+        encoder_hidden_size *= len(kernel_sizes)
+
     decoder = RNNDecoder(
             vocab_size=TARGET_VOCAB,
             embed_size=DECODER_EMB_SIZE,
             kind=DECODER_TYPE,
             encoder_directions=NUM_DIRECTIONS,
-            encoder_hidden_size=encoder.hidden_size,
+            encoder_hidden_size=encoder_hidden_size,
+            encoder_type=ENCODER_TYPE,
             num_layers=DECODER_NUM_LAYERS,
             fc_hidden_size=DECODER_HID_SIZE,
             attn=USE_ATTN,
@@ -213,18 +219,19 @@ def main():
                 joint_hidden_ec = JOINT_HIDDEN_EC
             )
 
-            val_beam_bleu = test_beam_search(
-                encoder=encoder,
-                decoder=decoder,
-                dataloader=val_loader,
-                criterion=criterion_test,
-                epoch=epoch,
-                max_len_target=MAX_LEN_TARGET,
-                id2token=id2token['target'],
-                token2id=token2id['target'],
-                device=DEVICE,
-                beam_size=BEAM_SIZE
-            )
+            val_beam_bleu = 1
+            # val_beam_bleu = test_beam_search(
+            #     encoder=encoder,
+            #     decoder=decoder,
+            #     dataloader=val_loader,
+            #     criterion=criterion_test,
+            #     epoch=epoch,
+            #     max_len_target=MAX_LEN_TARGET,
+            #     id2token=id2token['target'],
+            #     token2id=token2id['target'],
+            #     device=DEVICE,
+            #     beam_size=BEAM_SIZE
+            # )
             # scheduler.step(np.sum(train_losses))
 
 
