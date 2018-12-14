@@ -48,6 +48,7 @@ if ENCODER_TYPE == 'cnn':
 else:
     BIDIRECTIONAL = True if NUM_DIRECTIONS == 2 else False
 ENCODER_NUM_LAYERS, DECODER_NUM_LAYERS = args.encoder_num_layers, args.decoder_num_layers
+
 # Make sure encoder doesn't have lesser layers than decoder
 assert ENCODER_NUM_LAYERS >= DECODER_NUM_LAYERS
 ENCODER_EMB_SIZE, DECODER_EMB_SIZE = args.encoder_emb_size, args.decoder_emb_size
