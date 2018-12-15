@@ -16,9 +16,9 @@ def get_args():
     parser.add_argument('--load-ckpt', metavar='LOAD_CHECKPOINT', dest='load_ckpt', \
                         help='name of checkpoint file to load', required=False)
     parser.add_argument('--load-enc-ckpt', metavar='LOAD_ENC_CKPT', dest='load_enc_ckpt', \
-                        help='name of encoder file to load', required=False)
+                        help='name of encoder model to load', required=False)
     parser.add_argument('--load-dec-ckpt', metavar='LOAD_DEC_CKPT', dest='load_dec_ckpt', \
-                        help='name of decoder file to load', required=False)
+                        help='name of decoder model to load', required=False)
     parser.add_argument('--source-vocab', metavar='SOURCE_VOCAB', dest='source_vocab', \
                         help='source dataset vocabulary size', required=False, default=50000, type=int)
     parser.add_argument('--target-vocab', metavar='TARGET_VOCAB', dest='target_vocab', \

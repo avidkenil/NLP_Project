@@ -112,6 +112,25 @@ def nmt_collate_fn_train(batch, max_len_source, max_len_target):
             torch.from_numpy(padded_vec_target_batch).long(), torch.from_numpy(target_len_batch).unsqueeze(1).long()]
 
 
+
+
+
+class NMTTestDataset(Dataset):
+    def __init__(self, data,source_dataset,target_dataset):
+        self.data = data
+        self.source_dataset = source_dataset
+        self.target_dataset = target_dataset
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, ix):
+        data_ix = self.data.iloc[ix]
+        return torch.from_numpy(np.array(data_ix['source_idxs'])).long(), torch.from_numpy(np.array(data_ix['source_lens'])).unsqueeze(0).long(), \
+                data_ix[f'{self.source_dataset}_sent'], data_ix[f'{self.target_dataset}_sent']
+
+
+
 def nmt_collate_fn_val(batch, max_len_source, max_len_target):
     #for this the batch size will be 1 so we don't need to worry about it
     return [torch.from_numpy(np.array(batch[0][0])).unsqueeze(0).long(), torch.from_numpy(np.array(batch[0][1])).unsqueeze(0).unsqueeze(1).long(),

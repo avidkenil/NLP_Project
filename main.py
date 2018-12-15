@@ -14,7 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from seq2seq_nlp.arguments import get_args
-from seq2seq_nlp.preprocessing import generate_dataloader
+from seq2seq_nlp.preprocessing import generate_dataloader, generate_dataloader_test
 from seq2seq_nlp.models.encoder_networks import RNNEncoder, CNNEncoder
 from seq2seq_nlp.models.decoder_networks import RNNDecoder
 # from seq2seq_nlp.models.attention import VanillaAttention
@@ -148,7 +148,7 @@ def main():
     #scheduler = ReduceLROnPlateau(optimizer, min_lr=1e-4,  patience=0)
     train_loss_history, train_bleu_history = [], []
     val_loss_history, val_greedy_bleu_history, val_beam_bleu_history = [], [], []
-
+    best_val_bleu = 0.
     # Load model state dicts / models if required
     epoch_trained = 0
     if CHECKPOINT_FILE: # First check for state dicts
@@ -156,14 +156,14 @@ def main():
         train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch_trained = \
             load_checkpoint(encoder, decoder, optimizer, CHECKPOINT_FILE, \
                             PROJECT_DIR, CHECKPOINTS_DIR, DEVICE)
-    elif ENCODER_MODEL_CKPT or DECODER_MODEL_CKPT: # Otherwise check for entire model
-        if ENCODER_MODEL_CKPT:
-            encoder, epoch_trained = load_model(PROJECT_DIR, CHECKPOINTS_DIR, ENCODER_MODEL_CKPT)
-        if DECODER_MODEL_CKPT:
-            decoder, epoch_trained_dec = load_model(PROJECT_DIR, CHECKPOINTS_DIR, DECODER_MODEL_CKPT)
-            assert epoch_trained == epoch_trained_dec, \
-                'Mismatch in epochs trained for encoder (={}) and decoder (={}).'\
-                .format(epoch_trained, epoch_trained_dec)
+    elif ENCODER_MODEL_CKPT and DECODER_MODEL_CKPT: # Otherwise check for entire model
+        encoder, epoch_trained = load_model(PROJECT_DIR, CHECKPOINTS_DIR, ENCODER_MODEL_CKPT)
+        decoder, epoch_trained_dec = load_model(PROJECT_DIR, CHECKPOINTS_DIR, DECODER_MODEL_CKPT)
+        assert epoch_trained == epoch_trained_dec, \
+            'Mismatch in epochs trained for encoder (={}) and decoder (={}).'\
+            .format(epoch_trained, epoch_trained_dec)
+        optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=LR)
+        #scheduler = ReduceLROnPlateau(optimizer, min_lr=1e-4,  patience=0)
     start_epoch = epoch_trained # Start from (epoch_trained+1) if checkpoint loaded
 
     # Check if model is to be parallelized
@@ -184,6 +184,42 @@ def main():
     else:
         train = train_rnn
         test = test_rnn
+    
+
+    # id2token_path_source = os.path.join(PROJECT_DIR, DATA_DIR, f'id2token.50000.{SOURCE_DATASET}.p')
+    # token2id_path_source = os.path.join(PROJECT_DIR, DATA_DIR, f'token2id.50000.{SOURCE_DATASET}.p')
+    # id2token_path_target = os.path.join(PROJECT_DIR, DATA_DIR, f'id2token.50000.{TARGET_DATASET}.p')
+    # token2id_path_target = os.path.join(PROJECT_DIR, DATA_DIR, f'token2id.50000.{TARGET_DATASET}.p')
+
+    # id2token_source = load_object(id2token_path_source)
+    # token2id_source = load_object(token2id_path_source)
+    # id2token_target = load_object(id2token_path_target)
+    # token2id_target = load_object(token2id_path_target) 
+
+    # test_loader = generate_dataloader_test(project_dir = PROJECT_DIR, 
+    #                 data_dir = DATA_DIR, 
+    #                 source_dataset = SOURCE_DATASET, 
+    #                 target_dataset = TARGET_DATASET,
+    #                 replace_unk = True,
+    #                 id2token_source=id2token_source, 
+    #                 token2id_source=token2id_source,
+    #                 id2token_target=id2token_target, 
+    #                 token2id_target=token2id_target)
+
+    # bleu_test = test_gold(encoder=encoder, 
+    #                     decoder=decoder, 
+    #                     dataloader=test_loader, 
+    #                     criterion=criterion_test, 
+    #                     epoch=0, 
+    #                     max_len_target=100, 
+    #                     id2token = id2token_target, 
+    #                     token2id = token2id_target, 
+    #                     device=DEVICE, 
+    #                     joint_hidden_ec= JOINT_HIDDEN_EC,
+    #                     source_dataset=SOURCE_DATASET,
+    #                     project_dir=PROJECT_DIR, 
+    #                     data_dir=DATA_DIR)
+
     for epoch in range(start_epoch+1, N_EPOCHS+start_epoch+1):
         try:
             train_losses = train(
@@ -225,7 +261,7 @@ def main():
                 device=DEVICE,
                 beam_size=BEAM_SIZE
             )
-            # scheduler.step(np.sum(train_losses))
+            #scheduler.step(np.sum(train_losses))
 
 
             train_loss_history.extend(train_losses)
@@ -236,7 +272,9 @@ def main():
             logging.info('TRAIN Epoch: {}\tAverage loss: {:.4f}\n'.format(epoch, np.sum(train_losses)))
             logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, greedy BLEU: {:.4f}, beam BLEU: {:.4f}\n'.format(epoch, val_loss, val_greedy_bleu, val_beam_bleu))
 
-            if early_stopping.is_better(val_greedy_bleu):
+            #if early_stopping.is_better(val_greedy_bleu):
+            curr_epoch_best_val_bleu = max(val_greedy_bleu,val_beam_bleu)
+            if best_val_bleu < curr_epoch_best_val_bleu:
                 logging.info('Saving current best model checkpoint...')
                 save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
                                 train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch, args, \
@@ -246,11 +284,12 @@ def main():
                 remove_checkpoint(args, PROJECT_DIR, CHECKPOINTS_DIR, best_epoch)
                 logging.info('Done.')
                 best_epoch = epoch
+                best_val_bleu = curr_epoch_best_val_bleu
 
-            if early_stopping.stop(val_beam_bleu):
-                logging.info('Stopping early after {} epochs.'.format(epoch))
-                stop_epoch = epoch
-                break
+            # if early_stopping.stop(val_beam_bleu):
+            #     logging.info('Stopping early after {} epochs.'.format(epoch))
+            #     stop_epoch = epoch
+            #     break
         except KeyboardInterrupt:
             logging.info('Keyboard Interrupted!')
             stop_epoch = epoch - 1

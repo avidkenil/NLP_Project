@@ -169,6 +169,94 @@ def train_cnn(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len
     optimizer.zero_grad()
     return loss_hist
 
+def test_gold(encoder, decoder, dataloader, criterion, epoch, max_len_target, \
+             id2token, token2id, device, joint_hidden_ec,source_dataset,project_dir, data_dir):
+    encoder.eval()
+    decoder.eval()
+    all_output_sentences, all_target_sentences = [], []
+    batch_idx_to_select = np.random.choice(range(len(dataloader)),10,replace=False)
+    all_weights_selected_sentences = []
+    selected_output_sentences = []
+    selected_target_sentences = []
+    selected_source_sentences = []
+
+    with torch.no_grad():
+        for batch_idx, (source, source_len, source_orig_sent, target_orig_sent) in enumerate(dataloader):
+            source, source_len  = source.to(device), source_len.to(device)
+
+            encoder_output, encoder_hidden = encoder(source, source_len)
+            current_weights_all_steps = None
+            if(batch_idx in batch_idx_to_select):
+                current_weights_all_steps = []
+            if decoder.num_layers == 1:
+                if encoder.num_directions == 1:
+                    decoder_hidden_step = encoder_hidden[-1].unsqueeze(0)
+                else:
+                    decoder_hidden_step = encoder_hidden[-2:]
+            else:
+                decoder_hidden_step = encoder_hidden
+            max_len_target = 2*source_len
+            input_seq = torch.tensor([SOS_IDX]*source.size(0)).to(device)
+            decoder_outputs = np.zeros((source.size(0), max_len_target))
+
+            if decoder.attn :
+                prev_context_vec = torch.zeros((source.size(0), decoder.hidden_size)).to(device)
+            else:
+                prev_context_vec = None
+
+            for step in range(max_len_target):
+                decoder_output_step, decoder_hidden_step, attn_weights_step, prev_context_vec = decoder(input_seq, decoder_hidden_step,
+                 source_len, encoder_output, context_vec=prev_context_vec)
+                if current_weights_all_steps is not None:
+                    current_weights_all_steps.append(attn_weights_step.squeeze(1).cpu().numpy())
+                input_seq = decoder_output_step.topk(1, dim=1)[1].squeeze(1).detach()
+                current_output = input_seq.cpu().numpy()
+                if current_output == token2id[EOS]:
+                    break
+                decoder_outputs[:,step] = current_output
+            output_sentence = convert_idxs_to_sentence(decoder_outputs[0], id2token, token2id)
+            all_output_sentences.append(output_sentence)
+            all_target_sentences.append(target_orig_sent[0])
+
+            if(batch_idx in batch_idx_to_select):
+                selected_output_sentences.append(output_sentence)
+                selected_source_sentences.append(source_orig_sent[0])
+                selected_target_sentences.append(target_orig_sent[0])
+                all_weights_selected_sentences.append(current_weights_all_steps)
+
+
+
+    
+
+    bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences], lowercase=True).score
+
+    logging.info(f'Test Bleu score for the dataset:{source_dataset} is {bleu_score}')
+
+    save_object(all_output_sentences,os.path.join(project_dir, data_dir, f'all_output_sentences.{source_dataset}'))
+    save_object(all_target_sentences,os.path.join(project_dir, data_dir, f'all_target_sentences.{source_dataset}'))
+    save_object(all_weights_selected_sentences,os.path.join(project_dir, data_dir, f'all_weights_selected_sentences.{source_dataset}'))
+    save_object(selected_output_sentences,os.path.join(project_dir, data_dir, f'selected_output_sentences.{source_dataset}'))
+    save_object(selected_target_sentences,os.path.join(project_dir, data_dir, f'selected_target_sentences.{source_dataset}'))
+    save_object(selected_source_sentences,os.path.join(project_dir, data_dir, f'selected_source_sentences.{source_dataset}'))
+    return bleu_score
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Works on batch size of 1 for the val loader
 def test_rnn(encoder, decoder, dataloader, criterion, epoch, max_len_target, \
              id2token, token2id, device, joint_hidden_ec):
@@ -573,9 +661,9 @@ def save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_hi
     params = [args.source_dataset, args.target_dataset, args.source_vocab, \
               args.target_vocab, args.max_len_source, args.max_len_target, \
               args.encoder_type, args.num_directions, args.encoder_num_layers, \
-              args.decoder_num_layers, args.encoder_emb_size, args.decoder_emb_size, \
-              args.encoder_hid_size, args.encoder_dropout, args.decoder_dropout, \
-              args.decoder_hid_size, args.beam_size]
+              args.decoder_type,args.decoder_num_layers, args.encoder_emb_size, args.decoder_emb_size, \
+              args.encoder_hid_size, \
+              args.decoder_hid_size,int(args.use_attn)]
 
     state_dict_name = 'state_dict' + '_{}'*len(params) + '_epoch{}.pkl'
     state_dict_name = state_dict_name.format(*params, epoch)
@@ -588,9 +676,9 @@ def remove_checkpoint(args, project_dir, checkpoints_dir, epoch):
     params = [args.source_dataset, args.target_dataset, args.source_vocab, \
               args.target_vocab, args.max_len_source, args.max_len_target, \
               args.encoder_type, args.num_directions, args.encoder_num_layers, \
-              args.decoder_num_layers, args.encoder_emb_size, args.decoder_emb_size, \
-              args.encoder_hid_size, args.encoder_dropout, args.decoder_dropout, \
-              args.decoder_hid_size]
+              args.decoder_type,args.decoder_num_layers, args.encoder_emb_size, args.decoder_emb_size, \
+              args.encoder_hid_size, \
+              args.decoder_hid_size,int(args.use_attn)]
 
     state_dict_name = 'state_dict' + '_{}'*len(params) + '_epoch{}.pkl'
     state_dict_name = state_dict_name.format(*params, epoch)
@@ -643,9 +731,9 @@ def save_model(model, model_name, epoch, args, project_dir, checkpoints_dir):
     params = [args.source_dataset, args.target_dataset, args.source_vocab, \
               args.target_vocab, args.max_len_source, args.max_len_target, \
               args.encoder_type, args.num_directions, args.encoder_num_layers, \
-              args.decoder_num_layers, args.encoder_emb_size, args.decoder_emb_size, \
-              args.encoder_hid_size, args.encoder_dropout, args.decoder_dropout, \
-              args.decoder_hid_size]
+              args.decoder_type,args.decoder_num_layers, args.encoder_emb_size, args.decoder_emb_size, \
+              args.encoder_hid_size, \
+              args.decoder_hid_size,int(args.use_attn)]
 
     checkpoint_name = model_name + '_{}'*len(params) + '_epoch{}.pt'
     checkpoint_name = checkpoint_name.format(*params, epoch)
