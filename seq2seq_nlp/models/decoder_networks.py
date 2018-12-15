@@ -80,7 +80,7 @@ class AttentionModule(nn.Module):
 #         self.fc1 = nn.Linear(encoder_directions*encoder_hidden_size, vocab_size)
 #         self.device = device
 #         self.dropout = nn.Dropout(p=0.1)
-#         self.attn = AttentionModule(self.hidden_size, self.hidden_size, device=device) if attn else None       
+#         self.attn = AttentionModule(self.hidden_size, self.hidden_size, device=device) if attn else None
 #         # self.fc2 = nn.Linear(fc_hidden_size, vocab_size)
 
 #     def forward(self, x, decoder_hidden, source_lens=None, encoder_outputs=None,encoder_hidden = None):
@@ -103,7 +103,7 @@ class AttentionModule(nn.Module):
 #     def _init_state(self, batch_size):
 #         if isinstance(self.rnn,nn.LSTM):
 #             return(torch.zeros(self.num_layers * self.num_directions, batch_size,
-#                            self.hidden_size).to(self.device), 
+#                            self.hidden_size).to(self.device),
 #                    torch.zeros(self.num_layers * self.num_directions, batch_size,
 #                            self.hidden_size).to(self.device))
 #         else:
@@ -125,7 +125,7 @@ class AttentionModule(nn.Module):
 
 
 class RNNDecoder(nn.Module):
-    def __init__(self, vocab_size, embed_size, kind='gru',encoder_directions=1, encoder_hidden_size=256, \
+    def __init__(self, vocab_size, embed_size, kind='gru',encoder_directions=1, encoder_hidden_size=256, encoder_type='cnn',\
                  num_layers=1, fc_hidden_size=512, attn=False, dropout=0.1,joint_hidden_ec = False,device='cpu'):
         super(RNNDecoder, self).__init__()
 
@@ -133,7 +133,9 @@ class RNNDecoder(nn.Module):
         self.vocab_size = vocab_size
         self.num_layers = num_layers
         self.joint_hidden_ec = joint_hidden_ec
-        self.hidden_size = encoder_directions*encoder_hidden_size*2 if joint_hidden_ec else encoder_directions*encoder_hidden_size
+        self.hidden_size = encoder_hidden_size
+        if encoder_type != 'cnn':
+            self.hidden_size = encoder_directions*encoder_hidden_size*2 if joint_hidden_ec else encoder_directions*encoder_hidden_size
         if kind == 'gru':
             self.rnn = nn.GRU
         elif kind == 'lstm':
@@ -143,8 +145,6 @@ class RNNDecoder(nn.Module):
         else:
             raise NotImplementedError
 
-
-        
         self.fc1 = nn.Linear(encoder_directions*encoder_hidden_size, vocab_size)
         self.device = device
         self.dropout = nn.Dropout(p=0.1)
@@ -155,7 +155,7 @@ class RNNDecoder(nn.Module):
 
         else:
             self.rnn = self.rnn(embed_size, hidden_size=self.hidden_size, \
-                          batch_first=True, num_layers=self.num_layers,dropout=0.1)    
+                          batch_first=True, num_layers=self.num_layers,dropout=0.1)
         # self.fc2 = nn.Linear(fc_hidden_size, vocab_size)
 
     def forward(self, x, decoder_hidden, source_lens=None, encoder_outputs=None,encoder_hidden = None,context_vec = None):
@@ -187,7 +187,7 @@ class RNNDecoder(nn.Module):
     def _init_state(self, batch_size):
         if isinstance(self.rnn,nn.LSTM):
             return(torch.zeros(self.num_layers * self.num_directions, batch_size,
-                           self.hidden_size).to(self.device), 
+                           self.hidden_size).to(self.device),
                    torch.zeros(self.num_layers * self.num_directions, batch_size,
                            self.hidden_size).to(self.device))
         else:

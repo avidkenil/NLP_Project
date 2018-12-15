@@ -45,10 +45,10 @@ NUM_DIRECTIONS = args.num_directions
 assert NUM_DIRECTIONS in [1, 2]
 if ENCODER_TYPE == 'cnn':
     BIDIRECTIONAL = False
-    NUM_DIRECTIONS = 2
 else:
     BIDIRECTIONAL = True if NUM_DIRECTIONS == 2 else False
 ENCODER_NUM_LAYERS, DECODER_NUM_LAYERS = args.encoder_num_layers, args.decoder_num_layers
+
 # Make sure encoder doesn't have lesser layers than decoder
 assert ENCODER_NUM_LAYERS >= DECODER_NUM_LAYERS
 ENCODER_EMB_SIZE, DECODER_EMB_SIZE = args.encoder_emb_size, args.decoder_emb_size
@@ -107,10 +107,11 @@ def main():
 
     logging.info('Creating models...')
     if ENCODER_TYPE == 'cnn':
+        kernel_sizes = [2,3,4,5]
         encoder = CNNEncoder(vocab_size = SOURCE_VOCAB,
             embed_size = ENCODER_EMB_SIZE,
             hidden_size = ENCODER_HID_SIZE,
-            kernel_sizes = [3,5],
+            kernel_sizes = kernel_sizes,
             num_layers = ENCODER_NUM_LAYERS, \
             dropout=ENCODER_DROPOUT,
             dropout_type='1d')
@@ -123,12 +124,18 @@ def main():
                     bidirectional=BIDIRECTIONAL,
                     dropout=ENCODER_DROPOUT,
                     device=DEVICE)
+
+    encoder_hidden_size = encoder.hidden_size
+    if ENCODER_TYPE == 'cnn':
+        encoder_hidden_size *= len(kernel_sizes)
+
     decoder = RNNDecoder(
             vocab_size=TARGET_VOCAB,
             embed_size=DECODER_EMB_SIZE,
             kind=DECODER_TYPE,
             encoder_directions=NUM_DIRECTIONS,
-            encoder_hidden_size=encoder.hidden_size,
+            encoder_hidden_size=encoder_hidden_size,
+            encoder_type=ENCODER_TYPE,
             num_layers=DECODER_NUM_LAYERS,
             fc_hidden_size=DECODER_HID_SIZE,
             attn=USE_ATTN,
@@ -262,6 +269,7 @@ def main():
                 beam_size=BEAM_SIZE
             )
             #scheduler.step(np.sum(train_losses))
+
 
 
             train_loss_history.extend(train_losses)
