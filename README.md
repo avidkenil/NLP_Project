@@ -22,7 +22,7 @@ Again, for simplicity, we have created a module with the name `seq2seq-nlp` whic
 pip install -e .
 ```
 
-### Note: Please uncomment [these lines](https://github.com/avidkenil/NLP_Project/blob/master/main.py#L193-225) for getting results on the test set.
+### Note: Please uncomment [these lines](https://github.com/avidkenil/NLP_Project/blob/master/main.py#L193-L225) for getting results on the test set.
 
 ## Usage
 ```
