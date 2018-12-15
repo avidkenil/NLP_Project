@@ -169,25 +169,25 @@ def generate_dataloader_test(project_dir, data_dir, source_dataset, target_datas
 
     with open(source_path,'r') as f:
         test_data_source = np.array(f.read().splitlines())
-    
+
     with open(target_path,'r') as f:
         test_data_target = np.array(f.read().splitlines())
-    
+
     test_data = pd.DataFrame({f'{source_dataset}_sent':test_data_source,f'{target_dataset}_sent':test_data_target})
     test_data['source_list'] = test_data[f'{source_dataset}_sent'].str.split()
     test_data['source_lens'] = test_data['source_list'].apply(lambda x: len(x))
-    test_data['source_idxs'] = test_data['source_list'].apply(lambda x: [token2id_source[x[i]] if x[i] in token2id_source else UNK_IDX for i in range(len(x))])
+    test_data['source_idxs'] = test_data['source_list'].apply(lambda x: [token2id_source[x[i]] \
+                                                              if x[i] in token2id_source else UNK_IDX \
+                                                              for i in range(len(x))])
     if replace_unk:
         test_data['target_list'] = test_data[f'{target_dataset}_sent'].str.split()
-        #test_data['target_lens'] = test_data['source_list'].apply(lambda x: len(x))
-        test_data['target_idxs'] = test_data['target_list'].apply(lambda x: [token2id_target[x[i]] if x[i] in token2id_target else UNK_IDX for i in range(len(x))])
-        test_data[f'{target_dataset}_sent'] = test_data['target_idxs'].apply(lambda x: ' '.join([id2token_target[x[i]] for i in range(len(x))]))
+        test_data['target_idxs'] = test_data['target_list'].apply(lambda x: [token2id_target[x[i]] if x[i] \
+                                                                  in token2id_target else UNK_IDX for i in \
+                                                                  range(len(x))])
+        test_data[f'{target_dataset}_sent'] = test_data['target_idxs'].apply(lambda x: ' '.join([id2token_target[x[i]] \
+                                                                             for i in range(len(x))]))
 
-    # import pdb;pdb.set_trace()
     test_dataset = NMTTestDataset(test_data, source_dataset, target_dataset)
     test_dataloader = DataLoader(test_dataset,batch_size=1,shuffle=False)
 
     return test_dataloader
-
-
-

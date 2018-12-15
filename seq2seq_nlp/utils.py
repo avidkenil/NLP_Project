@@ -55,17 +55,9 @@ def train_rnn(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len
         else:
             prev_context_vec = None
         for step in range(max_batch_target_len):
-            # if joint_hidden_ec:
-            #     decoder_output_step, decoder_hidden_step, attn_weights_step = \
-            #     decoder(input_seq, decoder_hidden_step, source_lens,
-            #             encoder_output,encoder_hidden)
-            # if decoder.attn:
-            #     decoder_output_step, decoder_hidden_step
-            # else:
             decoder_output_step, decoder_hidden_step, attn_weights_step, prev_context_vec = \
                     decoder(input_seq, decoder_hidden_step, source_lens,
                             encoder_output, context_vec=prev_context_vec)
-            #input_seq = target[:, step]
             if use_teacher_forcing:
                 input_seq = target[:, step]
             else:
@@ -108,14 +100,6 @@ def train_cnn(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len
         decoder.train()
 
         encoder_output, encoder_hidden = encoder(source, source_lens)
-        # # Doing complete teacher forcing first and then will add the probability based teacher forcing
-        # if joint_hidden_ec:
-        #     decoder_hidden_step = decoder._init_state(source.size(0))
-        # else:
-        #     if decoder.num_layers == 1:
-        #         decoder_hidden_step = encoder_hidden[-1].unsqueeze(0)
-        #     else:
-        #         decoder_hidden_step = encoder_hidden
         decoder_hidden_step = get_decoder_hidden_from_cnn(decoder.num_layers, encoder_hidden)
 
         input_seq = torch.tensor([SOS_IDX]*source.size(0)).to(device)
@@ -124,19 +108,8 @@ def train_cnn(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len
         use_teacher_forcing = np.random.rand() < teacher_forcing_prob
 
         max_batch_target_len = target_lens.data.max().item()
-        # if decoder.attn :
-        #     prev_context_vec = torch.zeros((source.size(0), decoder.hidden_size)).to(device)
-        # else:
-        #     prev_context_vec = None
 
         for step in range(max_batch_target_len):
-            # if joint_hidden_ec:
-            #     decoder_output_step, decoder_hidden_step, attn_weights_step = \
-            #     decoder(input_seq, decoder_hidden_step, source_lens,
-            #             encoder_output,encoder_hidden)
-            # if decoder.attn:
-            #     decoder_output_step, decoder_hidden_step
-            # else:
             decoder_output_step, decoder_hidden_step, _, _ = \
                     decoder(input_seq, decoder_hidden_step)
 
@@ -169,94 +142,6 @@ def train_cnn(encoder, decoder, dataloader, criterion, optimizer, epoch, max_len
 
     optimizer.zero_grad()
     return loss_hist
-
-def test_gold(encoder, decoder, dataloader, criterion, epoch, max_len_target, \
-             id2token, token2id, device, joint_hidden_ec,source_dataset,project_dir, data_dir):
-    encoder.eval()
-    decoder.eval()
-    all_output_sentences, all_target_sentences = [], []
-    batch_idx_to_select = np.random.choice(range(len(dataloader)),10,replace=False)
-    all_weights_selected_sentences = []
-    selected_output_sentences = []
-    selected_target_sentences = []
-    selected_source_sentences = []
-
-    with torch.no_grad():
-        for batch_idx, (source, source_len, source_orig_sent, target_orig_sent) in enumerate(dataloader):
-            source, source_len  = source.to(device), source_len.to(device)
-
-            encoder_output, encoder_hidden = encoder(source, source_len)
-            current_weights_all_steps = None
-            if(batch_idx in batch_idx_to_select):
-                current_weights_all_steps = []
-            if decoder.num_layers == 1:
-                if encoder.num_directions == 1:
-                    decoder_hidden_step = encoder_hidden[-1].unsqueeze(0)
-                else:
-                    decoder_hidden_step = encoder_hidden[-2:]
-            else:
-                decoder_hidden_step = encoder_hidden
-            max_len_target = 2*source_len
-            input_seq = torch.tensor([SOS_IDX]*source.size(0)).to(device)
-            decoder_outputs = np.zeros((source.size(0), max_len_target))
-
-            if decoder.attn :
-                prev_context_vec = torch.zeros((source.size(0), decoder.hidden_size)).to(device)
-            else:
-                prev_context_vec = None
-
-            for step in range(max_len_target):
-                decoder_output_step, decoder_hidden_step, attn_weights_step, prev_context_vec = decoder(input_seq, decoder_hidden_step,
-                 source_len, encoder_output, context_vec=prev_context_vec)
-                if current_weights_all_steps is not None:
-                    current_weights_all_steps.append(attn_weights_step.squeeze(1).cpu().numpy())
-                input_seq = decoder_output_step.topk(1, dim=1)[1].squeeze(1).detach()
-                current_output = input_seq.cpu().numpy()
-                if current_output == token2id[EOS]:
-                    break
-                decoder_outputs[:,step] = current_output
-            output_sentence = convert_idxs_to_sentence(decoder_outputs[0], id2token, token2id)
-            all_output_sentences.append(output_sentence)
-            all_target_sentences.append(target_orig_sent[0])
-
-            if(batch_idx in batch_idx_to_select):
-                selected_output_sentences.append(output_sentence)
-                selected_source_sentences.append(source_orig_sent[0])
-                selected_target_sentences.append(target_orig_sent[0])
-                all_weights_selected_sentences.append(current_weights_all_steps)
-
-
-
-    
-
-    bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences], lowercase=True).score
-
-    logging.info(f'Test Bleu score for the dataset:{source_dataset} is {bleu_score}')
-
-    save_object(all_output_sentences,os.path.join(project_dir, data_dir, f'all_output_sentences.{source_dataset}'))
-    save_object(all_target_sentences,os.path.join(project_dir, data_dir, f'all_target_sentences.{source_dataset}'))
-    save_object(all_weights_selected_sentences,os.path.join(project_dir, data_dir, f'all_weights_selected_sentences.{source_dataset}'))
-    save_object(selected_output_sentences,os.path.join(project_dir, data_dir, f'selected_output_sentences.{source_dataset}'))
-    save_object(selected_target_sentences,os.path.join(project_dir, data_dir, f'selected_target_sentences.{source_dataset}'))
-    save_object(selected_source_sentences,os.path.join(project_dir, data_dir, f'selected_source_sentences.{source_dataset}'))
-    return bleu_score
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # Works on batch size of 1 for the val loader
 def test_rnn(encoder, decoder, dataloader, criterion, epoch, max_len_target, \
@@ -436,8 +321,6 @@ def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
                 new_hidden_states = []
                 for k in range(beam_size):
                     hidden_state = hidden_states_beam[k]
-                    # dec_out_beam, dec_hidden_beam, attn_weights_beam =\
-                    #     decoder(input_seqs[:, k], hidden_state, encoder_output)
                     dec_out_beam, dec_hidden_beam, attn_weights_beam, prev_context_vec = decoder(input_seqs[:,k], hidden_state, \
                     source_lens, encoder_output, context_vec=prev_context_vec)
 
@@ -535,6 +418,73 @@ def test_beam_search(encoder, decoder, dataloader, criterion, epoch,
         logging.info('VAL  Epoch: {}\tbeam output: {}\n'.format(epoch, all_output_sentences[rand_idx]))
 
     bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences]).score
+    return bleu_score
+
+def test_gold(encoder, decoder, dataloader, criterion, epoch, max_len_target, \
+             id2token, token2id, device, joint_hidden_ec,source_dataset,project_dir, data_dir):
+    encoder.eval()
+    decoder.eval()
+    all_output_sentences, all_target_sentences = [], []
+    batch_idx_to_select = np.random.choice(range(len(dataloader)),10,replace=False)
+    all_weights_selected_sentences = []
+    selected_output_sentences = []
+    selected_target_sentences = []
+    selected_source_sentences = []
+
+    with torch.no_grad():
+        for batch_idx, (source, source_len, source_orig_sent, target_orig_sent) in enumerate(dataloader):
+            source, source_len  = source.to(device), source_len.to(device)
+
+            encoder_output, encoder_hidden = encoder(source, source_len)
+            current_weights_all_steps = None
+            if(batch_idx in batch_idx_to_select):
+                current_weights_all_steps = []
+            if decoder.num_layers == 1:
+                if encoder.num_directions == 1:
+                    decoder_hidden_step = encoder_hidden[-1].unsqueeze(0)
+                else:
+                    decoder_hidden_step = encoder_hidden[-2:]
+            else:
+                decoder_hidden_step = encoder_hidden
+            max_len_target = 2*source_len
+            input_seq = torch.tensor([SOS_IDX]*source.size(0)).to(device)
+            decoder_outputs = np.zeros((source.size(0), max_len_target))
+
+            if decoder.attn :
+                prev_context_vec = torch.zeros((source.size(0), decoder.hidden_size)).to(device)
+            else:
+                prev_context_vec = None
+
+            for step in range(max_len_target):
+                decoder_output_step, decoder_hidden_step, attn_weights_step, prev_context_vec = decoder(input_seq, decoder_hidden_step,
+                 source_len, encoder_output, context_vec=prev_context_vec)
+                if current_weights_all_steps is not None:
+                    current_weights_all_steps.append(attn_weights_step.squeeze(1).cpu().numpy())
+                input_seq = decoder_output_step.topk(1, dim=1)[1].squeeze(1).detach()
+                current_output = input_seq.cpu().numpy()
+                if current_output == token2id[EOS]:
+                    break
+                decoder_outputs[:,step] = current_output
+            output_sentence = convert_idxs_to_sentence(decoder_outputs[0], id2token, token2id)
+            all_output_sentences.append(output_sentence)
+            all_target_sentences.append(target_orig_sent[0])
+
+            if(batch_idx in batch_idx_to_select):
+                selected_output_sentences.append(output_sentence)
+                selected_source_sentences.append(source_orig_sent[0])
+                selected_target_sentences.append(target_orig_sent[0])
+                all_weights_selected_sentences.append(current_weights_all_steps)
+
+    bleu_score = corpus_bleu(all_output_sentences, [all_target_sentences], lowercase=True).score
+
+    logging.info(f'Test Bleu score for the dataset:{source_dataset} is {bleu_score}')
+
+    save_object(all_output_sentences,os.path.join(project_dir, data_dir, f'all_output_sentences.{source_dataset}'))
+    save_object(all_target_sentences,os.path.join(project_dir, data_dir, f'all_target_sentences.{source_dataset}'))
+    save_object(all_weights_selected_sentences,os.path.join(project_dir, data_dir, f'all_weights_selected_sentences.{source_dataset}'))
+    save_object(selected_output_sentences,os.path.join(project_dir, data_dir, f'selected_output_sentences.{source_dataset}'))
+    save_object(selected_target_sentences,os.path.join(project_dir, data_dir, f'selected_target_sentences.{source_dataset}'))
+    save_object(selected_source_sentences,os.path.join(project_dir, data_dir, f'selected_source_sentences.{source_dataset}'))
     return bleu_score
 
 def get_decoder_hidden_from_cnn(decoder_num_layers, encoder_hidden):
@@ -813,42 +763,3 @@ class EarlyStopping(object):
         if self.num_bad_epochs >= self.patience:
             return True
         return False
-
-
-if __name__ == '__main__':
-    from preprocessing import generate_dataloader
-    from models.encoder_networks import RNNEncoder
-    from models.decoder_networks import RNNDecoder
-    source_vocab = 42141
-    target_vocab = 50000
-    batch_size = 32
-    unk_threshold = 5
-    train_loader, source_vocab, target_vocab, max_len_source, max_len_target, id2token, token2id = generate_dataloader('..', 'data/vi-en', 'vi', 'en', 'train', source_vocab, target_vocab, batch_size, 300, 300, unk_threshold, None, None, False)
-    val_loader = generate_dataloader('..', 'data/vi-en', 'vi', 'en', 'dev', \
-                                     source_vocab, target_vocab, batch_size, max_len_source, max_len_target, \
-                                     unk_threshold, id2token, token2id, False)
-    criterion = torch.nn.NLLLoss(reduction='sum', ignore_index=0)
-    epoch = 3
-    device = 'cpu'
-    encoder = RNNEncoder(kind='gru',
-                vocab_size=source_vocab,
-                embed_size=40,
-                hidden_size=40,
-                num_layers=1,
-                bidirectional=True,
-                return_type='full_last_layer',
-                dropout=0,
-                device=device)
-
-    decoder = RNNDecoder(
-            vocab_size=target_vocab,
-            embed_size=40,
-            encoder_directions=2,
-            encoder_hidden_size=40,
-            num_layers=1,
-            fc_hidden_size=40,
-            attn=None,
-            dropout=0)
-    epoch = 3
-    beam_size = 3
-    test_beam_search(encoder, decoder, train_loader, criterion, epoch, max_len_target, id2token, token2id, device, beam_size)

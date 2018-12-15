@@ -16,15 +16,7 @@ class RNNEncoder(nn.Module):
                  num_layers, bidirectional,
                  dropout=0.2, device='cpu'):
         '''
-        Arg in:
-            kind (str): one of: 'rnn', 'gru', 'lstm'
-            bidirectional (bool)
-            return_type (str):
-                'last_time_step' or 'full_last_layer'.
-                If 'last_time_step' returns (B, L * D, H) tensor that is the output of the last
-                    recurrent function of each layer in both directions
-                If 'full_last_layer' returns (B, T, D * H) tensor that is the hidden states
-                    from all time-steps of the last layer
+        kind (str): one of: 'rnn', 'gru', 'lstm'
         '''
 
         super().__init__()
@@ -58,8 +50,6 @@ class RNNEncoder(nn.Module):
                                      batch_first=True)
         out, h_n = self.rnn(embed, self._init_state(batch_size))
         out, _ = pad_packed_sequence(out, batch_first=True,padding_value=0)
-        # if self.return_type == 'last_time_step':
-        #     out = h_n
         # NOTE: h_n will always be of shape (num_layers*num_directions, batch, hidden_size)
         if self.num_directions == 2:
             h_n = self._cat_hidden(h_n,batch_size,orig_idx)
@@ -76,16 +66,16 @@ class RNNEncoder(nn.Module):
                            self.hidden_size).to(self.device)
 
     def _cat_hidden(self, h_n,batch_size,orig_idx):
-        # if bidirectional then have to reshape hidden from
+        # If bidirectional then have to reshape hidden from
         # (num_layers*num_directions, batch, hidden_size) -> (num_layers, batch, hidden_size*num_directions)
-        # currently just works for gru, and we will assume that we will just test for gru
+        # currently only works for gru, and we will assume that we will just test for gru
         if isinstance(self.rnn,nn.LSTM):
-            return (h_n[0].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1)[:,orig_idx,:],
-                h_n[1].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1)[:,orig_idx,:])
+            return (h_n[0].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous()\
+                    .view(self.num_layers, batch_size, -1)[:,orig_idx,:],
+                    h_n[1].view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().\
+                    view(self.num_layers, batch_size, -1)[:,orig_idx,:])
         else:
             return h_n.view(self.num_layers, 2, batch_size, -1).transpose(1, 2).contiguous().view(self.num_layers, batch_size, -1)[:,orig_idx,:]
-        #h_n = torch.cat([h_n[0:h_n.size(0):2], h_n[1:h_n.size(0):2]], dim=2)
-        #return h_n
 
     def _init_weights(self):
         for m in self.modules():
@@ -112,20 +102,8 @@ class CNNEncoder(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, embed_size, padding_idx=0)
 
-        self.dropout = nn.Dropout if dropout_type == '1d' else nn.Dropout2d
-        # TODO: implement dropout2d
-        self.dropout = nn.Dropout
+        self.dropout = nn.Dropout(p=dropout) if dropout_type == '1d' else nn.Dropout2d
         cnn_sequences = []
-        # for kernels in kernel_sizes:
-        #     cnn_sequence = []
-        #     for ix,kernel in enumerate(kernels):
-        #         in_channels = embed_size if ix == 0 else hidden_size
-        #         cnn_sequence.extend(
-        #             [nn.Conv1d(in_channels, hidden_size, kernel,
-        #                        padding=kernel // 2),
-        #              nn.ReLU(),
-        #              self.dropout(dropout)])
-        #     cnn_sequences.append(nn.Sequential(*cnn_sequence))
         for kernel_size in kernel_sizes:
             cnn_sequence = []
             for layer in range(num_layers):
@@ -146,11 +124,9 @@ class CNNEncoder(nn.Module):
             out = cnn(embed).transpose(1,2)  # (B, T, H)
             outputs.append(out)
 
-        # max-pooling
+        # Max-pooling
         for ix, output in enumerate(outputs):
             outputs[ix] = output.max(dim=1)[0]
 
         out = torch.cat(outputs, dim=1)
         return None, out
-
-        #return None , out.view(x.size(0),len(self.kernel_sizes),self.hidden_size).transpose(0,1).contiguous()

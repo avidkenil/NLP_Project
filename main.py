@@ -17,7 +17,6 @@ from seq2seq_nlp.arguments import get_args
 from seq2seq_nlp.preprocessing import generate_dataloader, generate_dataloader_test
 from seq2seq_nlp.models.encoder_networks import RNNEncoder, CNNEncoder
 from seq2seq_nlp.models.decoder_networks import RNNDecoder
-# from seq2seq_nlp.models.attention import VanillaAttention
 from seq2seq_nlp.utils import *
 from seq2seq_nlp.datasets import *
 
@@ -108,54 +107,52 @@ def main():
     logging.info('Creating models...')
     if ENCODER_TYPE == 'cnn':
         kernel_sizes = [2,3,4,5]
-        encoder = CNNEncoder(vocab_size = SOURCE_VOCAB,
-            embed_size = ENCODER_EMB_SIZE,
-            hidden_size = ENCODER_HID_SIZE,
-            kernel_sizes = kernel_sizes,
-            num_layers = ENCODER_NUM_LAYERS, \
-            dropout=ENCODER_DROPOUT,
-            dropout_type='1d')
+        encoder = CNNEncoder(vocab_size=SOURCE_VOCAB,
+                             embed_size=ENCODER_EMB_SIZE,
+                             hidden_size=ENCODER_HID_SIZE,
+                             kernel_sizes=kernel_sizes,
+                             num_layers=ENCODER_NUM_LAYERS,
+                             dropout=ENCODER_DROPOUT,
+                             dropout_type='1d')
     else:
         encoder = RNNEncoder(kind=ENCODER_TYPE,
-                    vocab_size=SOURCE_VOCAB,
-                    embed_size=ENCODER_EMB_SIZE,
-                    hidden_size=ENCODER_HID_SIZE,
-                    num_layers=ENCODER_NUM_LAYERS,
-                    bidirectional=BIDIRECTIONAL,
-                    dropout=ENCODER_DROPOUT,
-                    device=DEVICE)
+                             vocab_size=SOURCE_VOCAB,
+                             embed_size=ENCODER_EMB_SIZE,
+                             hidden_size=ENCODER_HID_SIZE,
+                             num_layers=ENCODER_NUM_LAYERS,
+                             bidirectional=BIDIRECTIONAL,
+                             dropout=ENCODER_DROPOUT,
+                             device=DEVICE)
 
     encoder_hidden_size = encoder.hidden_size
     if ENCODER_TYPE == 'cnn':
         encoder_hidden_size *= len(kernel_sizes)
 
-    decoder = RNNDecoder(
-            vocab_size=TARGET_VOCAB,
-            embed_size=DECODER_EMB_SIZE,
-            kind=DECODER_TYPE,
-            encoder_directions=NUM_DIRECTIONS,
-            encoder_hidden_size=encoder_hidden_size,
-            encoder_type=ENCODER_TYPE,
-            num_layers=DECODER_NUM_LAYERS,
-            fc_hidden_size=DECODER_HID_SIZE,
-            attn=USE_ATTN,
-            dropout=DECODER_DROPOUT,
-            joint_hidden_ec = JOINT_HIDDEN_EC,
-            device=DEVICE)
+    decoder = RNNDecoder(vocab_size=TARGET_VOCAB,
+                         embed_size=DECODER_EMB_SIZE,
+                         kind=DECODER_TYPE,
+                         encoder_directions=NUM_DIRECTIONS,
+                         encoder_hidden_size=encoder_hidden_size,
+                         encoder_type=ENCODER_TYPE,
+                         num_layers=DECODER_NUM_LAYERS,
+                         fc_hidden_size=DECODER_HID_SIZE,
+                         attn=USE_ATTN,
+                         dropout=DECODER_DROPOUT,
+                         joint_hidden_ec = JOINT_HIDDEN_EC,
+                         device=DEVICE)
     logging.info('Done.')
 
     logging.info(encoder)
     logging.info(decoder)
-    # Define criteria and optimizer
-    # Ignore padding indexes
+    # Define criteria and optimizer and ignore padding indexes
     criterion_train = nn.NLLLoss(reduction='sum', ignore_index=0)
     criterion_test = nn.NLLLoss(reduction='sum', ignore_index=0)
-    #optimizer = optim.SGD(list(encoder.parameters()) + list(decoder.parameters()) , lr=0.25,nesterov=True, momentum = 0.99)
     optimizer = optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=LR)
+    # optimizer = optim.SGD(list(encoder.parameters()) + list(decoder.parameters()), lr=0.25, nesterov=True, momentum=0.99)
     #scheduler = ReduceLROnPlateau(optimizer, min_lr=1e-4,  patience=0)
     train_loss_history, train_bleu_history = [], []
     val_loss_history, val_greedy_bleu_history, val_beam_bleu_history = [], [], []
-    best_val_bleu = 0.
+
     # Load model state dicts / models if required
     epoch_trained = 0
     if CHECKPOINT_FILE: # First check for state dicts
@@ -191,7 +188,7 @@ def main():
     else:
         train = train_rnn
         test = test_rnn
-    
+
 
     # id2token_path_source = os.path.join(PROJECT_DIR, DATA_DIR, f'id2token.50000.{SOURCE_DATASET}.p')
     # token2id_path_source = os.path.join(PROJECT_DIR, DATA_DIR, f'token2id.50000.{SOURCE_DATASET}.p')
@@ -201,30 +198,30 @@ def main():
     # id2token_source = load_object(id2token_path_source)
     # token2id_source = load_object(token2id_path_source)
     # id2token_target = load_object(id2token_path_target)
-    # token2id_target = load_object(token2id_path_target) 
+    # token2id_target = load_object(token2id_path_target)
 
-    # test_loader = generate_dataloader_test(project_dir = PROJECT_DIR, 
-    #                 data_dir = DATA_DIR, 
-    #                 source_dataset = SOURCE_DATASET, 
+    # test_loader = generate_dataloader_test(project_dir = PROJECT_DIR,
+    #                 data_dir = DATA_DIR,
+    #                 source_dataset = SOURCE_DATASET,
     #                 target_dataset = TARGET_DATASET,
     #                 replace_unk = True,
-    #                 id2token_source=id2token_source, 
+    #                 id2token_source=id2token_source,
     #                 token2id_source=token2id_source,
-    #                 id2token_target=id2token_target, 
+    #                 id2token_target=id2token_target,
     #                 token2id_target=token2id_target)
 
-    # bleu_test = test_gold(encoder=encoder, 
-    #                     decoder=decoder, 
-    #                     dataloader=test_loader, 
-    #                     criterion=criterion_test, 
-    #                     epoch=0, 
-    #                     max_len_target=100, 
-    #                     id2token = id2token_target, 
-    #                     token2id = token2id_target, 
-    #                     device=DEVICE, 
+    # bleu_test = test_gold(encoder=encoder,
+    #                     decoder=decoder,
+    #                     dataloader=test_loader,
+    #                     criterion=criterion_test,
+    #                     epoch=0,
+    #                     max_len_target=100,
+    #                     id2token = id2token_target,
+    #                     token2id = token2id_target,
+    #                     device=DEVICE,
     #                     joint_hidden_ec= JOINT_HIDDEN_EC,
     #                     source_dataset=SOURCE_DATASET,
-    #                     project_dir=PROJECT_DIR, 
+    #                     project_dir=PROJECT_DIR,
     #                     data_dir=DATA_DIR)
 
     for epoch in range(start_epoch+1, N_EPOCHS+start_epoch+1):
@@ -268,9 +265,7 @@ def main():
                 device=DEVICE,
                 beam_size=BEAM_SIZE
             )
-            #scheduler.step(np.sum(train_losses))
-
-
+            # scheduler.step(np.sum(train_losses))
 
             train_loss_history.extend(train_losses)
             val_loss_history.append(val_loss)
@@ -280,9 +275,7 @@ def main():
             logging.info('TRAIN Epoch: {}\tAverage loss: {:.4f}\n'.format(epoch, np.sum(train_losses)))
             logging.info('VAL   Epoch: {}\tAverage loss: {:.4f}, greedy BLEU: {:.4f}, beam BLEU: {:.4f}\n'.format(epoch, val_loss, val_greedy_bleu, val_beam_bleu))
 
-            #if early_stopping.is_better(val_greedy_bleu):
-            curr_epoch_best_val_bleu = max(val_greedy_bleu,val_beam_bleu)
-            if best_val_bleu < curr_epoch_best_val_bleu:
+            if early_stopping.is_better(val_greedy_bleu):
                 logging.info('Saving current best model checkpoint...')
                 save_checkpoint(encoder, decoder, optimizer, train_loss_history, val_loss_history, \
                                 train_bleu_history, val_greedy_bleu_history, val_beam_bleu_history, epoch, args, \
@@ -292,12 +285,11 @@ def main():
                 remove_checkpoint(args, PROJECT_DIR, CHECKPOINTS_DIR, best_epoch)
                 logging.info('Done.')
                 best_epoch = epoch
-                best_val_bleu = curr_epoch_best_val_bleu
 
-            # if early_stopping.stop(val_beam_bleu):
-            #     logging.info('Stopping early after {} epochs.'.format(epoch))
-            #     stop_epoch = epoch
-            #     break
+            if early_stopping.stop(val_beam_bleu):
+                logging.info('Stopping early after {} epochs.'.format(epoch))
+                stop_epoch = epoch
+                break
         except KeyboardInterrupt:
             logging.info('Keyboard Interrupted!')
             stop_epoch = epoch - 1
