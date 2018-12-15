@@ -2,6 +2,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+def get_mask(source_lens, device, max_len=None):
+    if max_len is None:
+        max_len = source_lens.max().item()
+    batch_size = source_lens.size(0)
+    seq_range = torch.arange(0, max_len).long()
+    seq_range_expand = seq_range.unsqueeze(0).repeat([batch_size,1]).to(device)
+    seq_length_expand = (source_lens.expand_as(seq_range_expand))
+    return seq_range_expand < seq_length_expand
+
+
 class AttentionModule(nn.Module):
     def __init__(self, input_dim, output_dim, device):
         super(AttentionModule,self).__init__()

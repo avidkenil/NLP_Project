@@ -5,16 +5,6 @@ import torch.nn.functional as F
 from seq2seq_nlp.models.attention import *
 
 
-def get_mask(source_lens, device, max_len=None):
-    if max_len is None:
-        max_len = source_lens.max().item()
-    batch_size = source_lens.size(0)
-    seq_range = torch.arange(0, max_len).long()
-    seq_range_expand = seq_range.unsqueeze(0).repeat([batch_size,1]).to(device)
-    seq_length_expand = (source_lens.expand_as(seq_range_expand))
-    return seq_range_expand < seq_length_expand
-
-
 class RNNDecoder(nn.Module):
     def __init__(self, vocab_size, embed_size, kind='gru',encoder_directions=1, encoder_hidden_size=256, encoder_type='cnn',\
                  num_layers=1, fc_hidden_size=512, attn=False, dropout=0.1, joint_hidden_ec=False,device='cpu'):
