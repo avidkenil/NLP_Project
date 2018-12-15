@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from seq2seq_nlp.attention import *
+from seq2seq_nlp.models.attention import *
 
 
 def get_mask(source_lens, device, max_len=None):
